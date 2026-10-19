@@ -1,0 +1,842 @@
+<title>New Dresser</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: fitting-room app — sticky header, 2-col closet grid, bottom tab bar, bottom sheets for detail/forms. Item tags styled like garment care labels. */
+:root {
+  --bg: #f3f2f5;
+  --surface: #ffffff;
+  --surface-2: #e8e6ec;
+  --fg: #1f1c25;
+  --muted: #6b6676;
+  --line: #dad7e0;
+  --accent: #8a2f45;
+  --accent-soft: #f1dfe4;
+  --on-accent: #ffffff;
+  --danger: #b3261e;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 14px;
+  --nav-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15131a; --surface: #1f1c26; --surface-2: #2a2632; --fg: #eeecf2; --muted: #a39eae;
+    --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25; --danger: #f2867e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15131a; --surface: #1f1c26; --surface-2: #2a2632; --fg: #eeecf2; --muted: #a39eae;
+  --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25; --danger: #f2867e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); }
+.top-in { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-block: 14px 10px; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; }
+.top-meta { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+
+main { padding-block: 4px calc(var(--nav-h) + 96px + env(safe-area-inset-bottom, 0px)); }
+h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; margin: 18px 0 10px; text-wrap: balance; }
+
+/* Controls */
+.search { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+.search::placeholder { color: var(--muted); }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-block: 10px 4px; scrollbar-width: none; margin: 0 -2px; padding-inline: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 13px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+.chip[aria-pressed="true"], .chip-input:checked + .chip { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.chip-input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-input:focus-visible + .chip { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; padding-block: 8px; }
+.sw { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); position: relative; flex: none; padding: 0; }
+.sw[aria-pressed="true"], .chip-input:checked + .sw { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); }
+.sort { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 6px 10px; font-size: 0.85rem; }
+.count { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+
+/* Banner */
+.banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); border-radius: 12px; padding: 10px 14px; margin-top: 12px; font-size: 0.88rem; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Closet grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+.card { background: var(--surface); border: 0; border-radius: var(--radius); padding: 0; text-align: left; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.card .pic { aspect-ratio: 4 / 5; width: 100%; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
+.card .pic img { width: 100%; height: 100%; object-fit: cover; }
+.sil { width: 64%; height: 64%; }
+.card .body { padding: 9px 11px 11px; display: grid; gap: 3px; min-width: 0; }
+.card .name { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tag { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { position: absolute; top: 8px; left: 8px; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--surface); color: var(--muted); padding: 2px 6px; border-radius: 6px; }
+.fav { position: absolute; top: 6px; right: 8px; color: var(--accent); font-size: 1rem; }
+.card.sel { box-shadow: 0 0 0 2.5px var(--accent); }
+.card .check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; }
+.card.sel .check { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* Outfits */
+.olist { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; }
+.ocard { background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 0; padding: 0; text-align: left; display: flex; flex-direction: column; position: relative; }
+.collage { aspect-ratio: 1 / 1; display: grid; gap: 2px; background: var(--line); width: 100%; }
+.collage > div { background: var(--surface-2); display: grid; place-items: center; overflow: hidden; min-height: 0; }
+.collage img { width: 100%; height: 100%; object-fit: cover; }
+.collage .sil { width: 70%; height: 70%; }
+.collage.n1 { grid-template-columns: 1fr; }
+.collage.n2 { grid-template-columns: 1fr 1fr; }
+.collage.n3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.collage.n3 > div:first-child { grid-row: span 2; }
+.collage.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.collage.n0 { grid-template-columns: 1fr; }
+.ocard .body { padding: 10px 12px 12px; display: grid; gap: 4px; }
+.ocard .name { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; }
+
+/* Empty */
+.empty { text-align: center; padding: 48px 16px; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+.empty strong { color: var(--fg); font-family: var(--font-display); font-size: 1.1rem; }
+
+/* Buttons */
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 16px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.armed { background: var(--danger); color: var(--surface); border-color: var(--danger); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Bottom nav */
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabs-in { display: grid; grid-template-columns: repeat(3, 1fr); height: var(--nav-h); }
+.tab { background: none; border: 0; display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--muted); font-size: 0.72rem; font-weight: 600; }
+.tab svg { width: 24px; height: 24px; }
+.tab[aria-current="page"] { color: var(--accent); }
+.fab { position: fixed; z-index: 7; right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)); bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px)); height: 54px; padding: 0 20px 0 16px; border-radius: 27px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
+.fab svg { width: 22px; height: 22px; }
+
+/* Sheet */
+.sheet-root { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.backdrop { position: absolute; inset: 0; background: rgba(10, 8, 14, 0.5); }
+.sheet { position: relative; background: var(--bg); width: 100%; max-width: 600px; max-height: 92%; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); animation: up 0.22s ease-out; overscroll-behavior: contain; }
+@keyframes up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+.grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 4px auto 10px; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.sheet-head h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; margin: 0; text-wrap: balance; min-width: 0; }
+.x { background: var(--surface-2); border: 0; width: 34px; height: 34px; border-radius: 50%; font-size: 1.1rem; flex: none; }
+.field { display: grid; gap: 6px; margin-top: 16px; }
+.field > label, .field > .lbl { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.input { width: 100%; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+textarea.input { min-height: 72px; resize: vertical; }
+.photo-pick { display: grid; place-items: center; aspect-ratio: 4 / 3; border: 1.5px dashed var(--line); border-radius: var(--radius); background: var(--surface); color: var(--muted); text-align: center; overflow: hidden; position: relative; }
+.photo-pick img { width: 100%; height: 100%; object-fit: cover; }
+.photo-pick .sil { width: 40%; height: 60%; }
+.photo-pick .hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.actions .btn { flex: 1 1 140px; }
+
+/* Detail */
+.hero-pic { aspect-ratio: 4 / 5; max-height: 52vh; width: 100%; border-radius: var(--radius); background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
+.hero-pic img { width: 100%; height: 100%; object-fit: cover; }
+.hero-pic .sil { width: 50%; height: 50%; }
+.label-card { background: var(--surface); border-radius: var(--radius); padding: 4px 14px; margin-top: 14px; font-family: var(--font-mono); font-size: 0.8rem; }
+.label-card > div { display: flex; justify-content: space-between; gap: 16px; padding-block: 9px; border-bottom: 1px dashed var(--line); }
+.label-card > div:last-child { border-bottom: 0; }
+.label-card dt { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; padding-top: 2px; }
+.label-card dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.dots { display: inline-flex; gap: 4px; vertical-align: middle; }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line); display: inline-block; }
+.notes { margin-top: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.mini-row { display: flex; gap: 10px; overflow-x: auto; padding-block: 4px 8px; }
+.mini { flex: none; width: 84px; background: var(--surface); border: 0; border-radius: 10px; padding: 0; overflow: hidden; text-align: left; }
+.mini .pic { aspect-ratio: 1; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
+.mini .pic img { width: 100%; height: 100%; object-fit: cover; }
+.mini .sil { width: 66%; height: 66%; }
+.mini span { display: block; font-size: 0.72rem; padding: 5px 7px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.section-lbl { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; }
+.picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 8px; }
+.picker-grid .card .pic { aspect-ratio: 1; }
+.picker-grid .card .body { padding: 6px 8px 8px; }
+.picker-grid .card .name { font-size: 0.78rem; }
+
+/* More */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
+.stat b { display: block; font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.8rem; color: var(--muted); }
+.bars { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 9px; }
+.bar { display: grid; grid-template-columns: 96px 1fr 28px; align-items: center; gap: 10px; font-size: 0.85rem; }
+.bar .track { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--accent); border-radius: 4px; }
+.bar .n { font-family: var(--font-mono); font-size: 0.78rem; text-align: right; font-variant-numeric: tabular-nums; }
+.panel { background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 12px; }
+.panel p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+
+/* Toast */
+.toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 0.88rem; font-weight: 500; z-index: 30; max-width: calc(100% - 32px); text-align: center; }
+</style>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand">New Dresser</div>
+    <div class="top-meta" id="topMeta"></div>
+  </div>
+</header>
+
+<main id="view" class="wrap" aria-live="polite"></main>
+
+<button class="fab" id="fab" type="button">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  <span id="fabLabel">Add item</span>
+</button>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap tabs-in">
+    <button class="tab" type="button" data-tab="closet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5a2 2 0 1 1 2.6 1.9c-.4.1-.6.5-.6.9V10l8.4 6.1c.8.6.4 1.9-.6 1.9H4.2c-1 0-1.4-1.3-.6-1.9L12 10"/></svg>
+      Closet
+    </button>
+    <button class="tab" type="button" data-tab="outfits">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+      Outfits
+    </button>
+    <button class="tab" type="button" data-tab="more">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 19V11M12 19V5M19 19v-6"/></svg>
+      Overview
+    </button>
+  </div>
+</nav>
+
+<div class="sheet-root" id="sheetRoot" hidden>
+  <div class="backdrop" data-action="close-sheet"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Reference data ----------
+  const CATS = [
+    { id: 'top', label: 'Tops', one: 'Top' },
+    { id: 'bottom', label: 'Bottoms', one: 'Bottom' },
+    { id: 'dress', label: 'Dresses', one: 'Dress' },
+    { id: 'outer', label: 'Outerwear', one: 'Outerwear' },
+    { id: 'shoes', label: 'Shoes', one: 'Shoes' },
+    { id: 'bag', label: 'Bags', one: 'Bag' },
+    { id: 'acc', label: 'Accessories', one: 'Accessory' },
+  ];
+  const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+  const COLORS = {
+    black: '#1d1d1f', white: '#f7f7f4', grey: '#9a9ca0', navy: '#25304f', blue: '#4a78c2',
+    green: '#3f8a5a', olive: '#6f7342', beige: '#d8c6a5', brown: '#7a5232', red: '#c0392b',
+    pink: '#e8a0b4', purple: '#7d5ba6', yellow: '#e8c547', orange: '#e07b39',
+  };
+  const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter'];
+  const SEASON_ABBR = { Spring: 'SP', Summer: 'SU', Fall: 'FA', Winter: 'WI' };
+  const OCCASIONS = ['Casual', 'Work', 'Going out', 'Sport', 'Formal'];
+
+  // Garment silhouettes, viewBox 0 0 100 100
+  const SIL = {
+    top: '<path d="M32 16 L43 12 Q50 20 57 12 L68 16 L88 33 L78 45 L70 38 L70 88 L30 88 L30 38 L22 45 L12 33 Z"/>',
+    bottom: '<path d="M30 12 L70 12 L74 90 L56 90 L50 38 L44 90 L26 90 Z"/>',
+    dress: '<path d="M40 10 L46 10 Q50 16 54 10 L60 10 L60 30 L78 90 L22 90 L40 30 Z"/>',
+    outer: '<path d="M36 10 L44 10 L50 26 L56 10 L64 10 L86 24 L84 64 L76 64 L76 90 L54 90 L50 32 L46 90 L24 90 L24 64 L16 64 L14 24 Z"/>',
+    shoes: '<path d="M12 64 L12 44 L30 44 Q38 57 56 60 L80 64 Q90 66 90 75 L90 80 L12 80 Z"/>',
+    bag: '<path d="M38 40 Q38 18 50 18 Q62 18 62 40" fill="none" stroke-width="5"/><path d="M22 40 L78 40 L84 88 L16 88 Z"/>',
+    acc: '<path d="M22 62 Q24 30 50 28 Q76 30 78 62 Z"/><path d="M10 62 L90 62 L90 72 L10 72 Z"/>',
+  };
+
+  // ---------- Storage (IndexedDB, memory fallback) ----------
+  const Store = (() => {
+    let db = null;
+    const mem = { items: new Map(), outfits: new Map(), meta: new Map() };
+    function open() {
+      return new Promise(resolve => {
+        try {
+          const req = indexedDB.open('new-dresser', 1);
+          req.onupgradeneeded = () => {
+            const d = req.result;
+            ['items', 'outfits', 'meta'].forEach(s => { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); });
+          };
+          req.onsuccess = () => { db = req.result; resolve(true); };
+          req.onerror = () => resolve(false);
+          req.onblocked = () => resolve(false);
+        } catch (e) { resolve(false); }
+      });
+    }
+    function all(store) {
+      if (!db) return Promise.resolve([...mem[store].values()]);
+      return new Promise(resolve => {
+        try {
+          const req = db.transaction(store).objectStore(store).getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => resolve([]);
+        } catch (e) { resolve([]); }
+      });
+    }
+    function write(store, op) {
+      if (!db) return Promise.resolve(true);
+      return new Promise(resolve => {
+        try {
+          const t = db.transaction(store, 'readwrite');
+          op(t.objectStore(store));
+          t.oncomplete = () => resolve(true);
+          t.onerror = () => resolve(false);
+          t.onabort = () => resolve(false);
+        } catch (e) { resolve(false); }
+      });
+    }
+    return {
+      open, all,
+      persistent: () => !!db,
+      put: (store, obj) => { mem[store].set(obj.id, obj); return write(store, s => s.put(obj)); },
+      del: (store, id) => { mem[store].delete(id); return write(store, s => s.delete(id)); },
+      clear: (store) => { mem[store].clear(); return write(store, s => s.clear()); },
+    };
+  })();
+
+  // ---------- State ----------
+  const state = {
+    view: 'closet',
+    items: [],
+    outfits: [],
+    closet: { q: '', cat: 'all', color: null, sort: 'new' },
+  };
+  try { const v = localStorage.getItem('nd-view'); if (['closet', 'outfits', 'more'].includes(v)) state.view = v; } catch (e) {}
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const itemById = id => state.items.find(i => i.id === id);
+
+  function daysAgo(iso) {
+    if (!iso) return 'Never';
+    const [y, m, d] = iso.split('-').map(Number);
+    const then = new Date(y, m - 1, d); const now = new Date(); now.setHours(0, 0, 0, 0);
+    const n = Math.round((now - then) / 86400000);
+    if (n <= 0) return 'Today';
+    if (n === 1) return 'Yesterday';
+    if (n < 30) return `${n} days ago`;
+    return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: now.getFullYear() === y ? undefined : 'numeric' });
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+  }
+
+  async function save(store, obj) {
+    const ok = await Store.put(store, obj);
+    if (!ok) toast("Couldn't save to this device. Storage may be full.");
+    return ok;
+  }
+
+  // ---------- Visuals ----------
+  let silN = 0;
+  function silhouette(item) {
+    const c1 = COLORS[item.colors?.[0]] || COLORS.grey;
+    const c2 = item.colors?.[1] ? COLORS[item.colors[1]] : null;
+    let fill = c1, defs = '';
+    if (c2) {
+      const pid = 'p' + (++silN);
+      defs = `<defs><pattern id="${pid}" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="12" height="12" fill="${c1}"/><rect width="12" height="5" fill="${c2}"/></pattern></defs>`;
+      fill = `url(#${pid})`;
+    }
+    return `<svg class="sil" viewBox="0 0 100 100" aria-hidden="true">${defs}<g fill="${fill}" stroke="${c1 === COLORS.white || c1 === COLORS.beige ? 'rgba(0,0,0,.28)' : 'rgba(0,0,0,.12)'}" stroke-width="1.5" stroke-linejoin="round">${(SIL[item.category] || SIL.top).replace('fill="none" stroke-width="5"', `fill="none" stroke="${c1}" stroke-width="5"`)}</g></svg>`;
+  }
+  const pic = item => item.photo ? `<img src="${item.photo}" alt="${esc(item.name)}" loading="lazy">` : silhouette(item);
+  const dots = colors => `<span class="dots">${(colors || []).map(c => `<span class="dot" style="background:${COLORS[c]}" title="${c}"></span>`).join('')}</span>`;
+  function itemTag(item) {
+    const parts = [CAT[item.category]?.one || ''];
+    const s = item.seasons || [];
+    parts.push(s.length === 4 ? 'All year' : s.map(x => SEASON_ABBR[x]).join('/') || '—');
+    parts.push(`${item.wornCount || 0}× worn`);
+    return parts.join(' · ');
+  }
+  function collage(ids) {
+    const its = ids.map(itemById).filter(Boolean).slice(0, 4);
+    if (!its.length) return `<div class="collage n0"><div><span class="count">No items</span></div></div>`;
+    return `<div class="collage n${its.length}">${its.map(i => `<div>${pic(i)}</div>`).join('')}</div>`;
+  }
+
+  // ---------- Views ----------
+  function render() {
+    silN = 0;
+    document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-current', t.dataset.tab === state.view ? 'page' : 'false'));
+    $('#topMeta').textContent = `${state.items.length} items · ${state.outfits.length} outfits`;
+    $('#fab').hidden = state.view === 'more';
+    $('#fabLabel').textContent = state.view === 'outfits' ? 'New outfit' : 'Add item';
+    const v = $('#view');
+    if (state.view === 'closet') v.innerHTML = closetView();
+    else if (state.view === 'outfits') v.innerHTML = outfitsView();
+    else v.innerHTML = moreView();
+  }
+
+  function filteredItems() {
+    const { q, cat, color, sort } = state.closet;
+    const needle = q.trim().toLowerCase();
+    let list = state.items.filter(i =>
+      (cat === 'all' || (cat === 'fav' ? i.fav : i.category === cat)) &&
+      (!color || (i.colors || []).includes(color)) &&
+      (!needle || [i.name, i.brand, i.notes, CAT[i.category]?.one].join(' ').toLowerCase().includes(needle))
+    );
+    const by = {
+      new: (a, b) => b.created - a.created,
+      most: (a, b) => (b.wornCount || 0) - (a.wornCount || 0),
+      least: (a, b) => (a.wornCount || 0) - (b.wornCount || 0),
+      stale: (a, b) => (a.lastWorn || '').localeCompare(b.lastWorn || ''),
+    };
+    return list.sort(by[sort] || by.new);
+  }
+
+  function closetView() {
+    const c = state.closet;
+    const hasSamples = state.items.some(i => i.sample);
+    if (!state.items.length) {
+      return `<div class="empty"><strong>Your closet is empty</strong><span>Snap a photo of something you own to add your first piece.</span><button class="btn primary" data-action="add-item">Add item</button></div>`;
+    }
+    const usedColors = Object.keys(COLORS).filter(k => state.items.some(i => (i.colors || []).includes(k)));
+    const list = filteredItems();
+    return `
+      ${hasSamples ? `<div class="banner"><span>These are example pieces so you can try things out.</span><button class="linkbtn" data-action="remove-samples">Remove examples</button></div>` : ''}
+      <div style="margin-top:12px"><input class="search" id="q" type="search" placeholder="Search name, brand, notes" value="${esc(c.q)}" autocomplete="off"></div>
+      <div class="chips" role="group" aria-label="Category">
+        ${[{ id: 'all', label: 'All' }, { id: 'fav', label: '♥ Favorites' }, ...CATS].map(x => `<button class="chip" data-action="cat" data-v="${x.id}" aria-pressed="${c.cat === x.id}">${x.label}</button>`).join('')}
+      </div>
+      <div class="row between">
+        <div class="swatches" role="group" aria-label="Color">
+          ${usedColors.map(k => `<button class="sw" data-action="color" data-v="${k}" style="background:${COLORS[k]}" aria-label="${k}" aria-pressed="${c.color === k}"></button>`).join('')}
+        </div>
+        <div class="row">
+          <span class="count">${list.length} shown</span>
+          <select class="sort" id="sort" aria-label="Sort">
+            ${[['new', 'Newest'], ['most', 'Most worn'], ['least', 'Least worn'], ['stale', 'Not worn lately']].map(([v, l]) => `<option value="${v}" ${c.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      ${list.length ? `<div class="grid">${list.map(itemCard).join('')}</div>` :
+        `<div class="empty"><strong>Nothing matches</strong><span>Try another category or color.</span><button class="btn" data-action="reset-filters">Clear filters</button></div>`}
+    `;
+  }
+
+  function itemCard(i) {
+    return `<button class="card" data-action="open-item" data-id="${i.id}">
+      <div class="pic">${pic(i)}</div>
+      ${i.sample ? '<span class="badge">Example</span>' : ''}
+      ${i.fav ? '<span class="fav" aria-label="Favorite">♥</span>' : ''}
+      <div class="body"><span class="name">${esc(i.name)}</span><span class="tag">${itemTag(i)}</span></div>
+    </button>`;
+  }
+
+  function outfitsView() {
+    if (!state.outfits.length) {
+      return `<div class="empty"><strong>No outfits yet</strong><span>Combine pieces from your closet into looks you can reuse.</span><button class="btn primary" data-action="new-outfit">New outfit</button></div>`;
+    }
+    const list = [...state.outfits].sort((a, b) => b.created - a.created);
+    return `<h2 class="view-title">Outfits</h2><div class="olist">${list.map(o => {
+      const last = (o.wornDates || []).slice(-1)[0];
+      return `<button class="ocard" data-action="open-outfit" data-id="${o.id}">
+        ${collage(o.itemIds)}
+        ${o.sample ? '<span class="badge">Example</span>' : ''}
+        <div class="body"><span class="name">${esc(o.name)}</span>
+        <span class="tag">${[o.occasion, `${o.itemIds.length} pieces`, `${(o.wornDates || []).length}× worn`].filter(Boolean).join(' · ')}</span>
+        <span class="tag">Last worn: ${daysAgo(last)}</span></div>
+      </button>`;
+    }).join('')}</div>`;
+  }
+
+  function moreView() {
+    const items = state.items;
+    const never = items.filter(i => !i.wornCount).length;
+    const most = [...items].sort((a, b) => (b.wornCount || 0) - (a.wornCount || 0))[0];
+    const counts = CATS.map(c => ({ ...c, n: items.filter(i => i.category === c.id).length })).filter(c => c.n);
+    const max = Math.max(1, ...counts.map(c => c.n));
+    const hasSamples = items.some(i => i.sample) || state.outfits.some(o => o.sample);
+    return `
+      <h2 class="view-title">Overview</h2>
+      <div class="stats">
+        <div class="stat"><b>${items.length}</b><span>pieces</span></div>
+        <div class="stat"><b>${state.outfits.length}</b><span>outfits</span></div>
+        <div class="stat"><b>${never}</b><span>never worn</span></div>
+      </div>
+      ${most && most.wornCount ? `<div class="section-lbl">Most worn</div><div class="mini-row"><button class="mini" data-action="open-item" data-id="${most.id}"><div class="pic">${pic(most)}</div><span>${esc(most.name)} · ${most.wornCount}×</span></button></div>` : ''}
+      ${counts.length ? `<div class="section-lbl">By category</div><div class="bars">${counts.map(c => `<div class="bar"><span>${c.label}</span><div class="track"><div class="fill" style="width:${(c.n / max) * 100}%"></div></div><span class="n">${c.n}</span></div>`).join('')}</div>` : ''}
+      <div class="section-lbl">Your data</div>
+      <div class="panel">
+        <p>${Store.persistent() ? 'Everything is saved on this phone only. Clearing your browser data for this page erases your closet.' : 'This browser blocked storage, so changes last only until you close the page.'}</p>
+        ${hasSamples ? '<button class="btn" data-action="remove-samples">Remove example pieces and outfits</button>' : ''}
+        <button class="btn danger" data-action="wipe" data-confirm="Tap again to erase everything">Erase everything</button>
+      </div>
+    `;
+  }
+
+  // ---------- Sheets ----------
+  let sheetCleanup = null;
+  function openSheet(html, onMount) {
+    silN = 1000;
+    const root = $('#sheetRoot'), sheet = $('#sheet');
+    sheet.innerHTML = `<div class="grab"></div>${html}`;
+    root.hidden = false;
+    document.body.style.overflow = 'hidden';
+    sheet.scrollTop = 0;
+    sheetCleanup = onMount ? onMount(sheet) : null;
+  }
+  function closeSheet() {
+    $('#sheetRoot').hidden = true;
+    $('#sheet').innerHTML = '';
+    document.body.style.overflow = '';
+    if (typeof sheetCleanup === 'function') sheetCleanup();
+    sheetCleanup = null;
+  }
+  const head = title => `<div class="sheet-head"><h3>${title}</h3><button class="x" data-action="close-sheet" aria-label="Close">✕</button></div>`;
+
+  function openItem(id) {
+    const i = itemById(id); if (!i) return;
+    const inOutfits = state.outfits.filter(o => o.itemIds.includes(id));
+    openSheet(`
+      ${head(esc(i.name))}
+      <div class="hero-pic">${pic(i)}</div>
+      <dl class="label-card">
+        <div><dt>Category</dt><dd>${CAT[i.category]?.one || ''}</dd></div>
+        <div><dt>Color</dt><dd>${dots(i.colors)} ${(i.colors || []).join(', ')}</dd></div>
+        <div><dt>Season</dt><dd>${(i.seasons || []).length === 4 ? 'All year' : (i.seasons || []).join(', ') || '—'}</dd></div>
+        ${i.brand ? `<div><dt>Brand</dt><dd>${esc(i.brand)}</dd></div>` : ''}
+        <div><dt>Worn</dt><dd>${i.wornCount || 0} times</dd></div>
+        <div><dt>Last worn</dt><dd>${daysAgo(i.lastWorn)}</dd></div>
+      </dl>
+      ${i.notes ? `<div class="notes">${esc(i.notes)}</div>` : ''}
+      ${inOutfits.length ? `<div class="section-lbl">In ${inOutfits.length} outfit${inOutfits.length > 1 ? 's' : ''}</div>
+        <div class="mini-row">${inOutfits.map(o => `<button class="mini" data-action="open-outfit" data-id="${o.id}"><div class="pic">${collage(o.itemIds)}</div><span>${esc(o.name)}</span></button>`).join('')}</div>` : ''}
+      <div class="actions">
+        <button class="btn primary" data-action="wear-item" data-id="${i.id}">Wore it today</button>
+        <button class="btn" data-action="fav" data-id="${i.id}">${i.fav ? '♥ Favorited' : '♡ Favorite'}</button>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn" data-action="edit-item" data-id="${i.id}">Edit</button>
+        <button class="btn danger" data-action="delete-item" data-id="${i.id}" data-confirm="Tap again to delete">Delete</button>
+      </div>
+    `);
+  }
+
+  function itemForm(existing) {
+    const i = existing || { name: '', category: state.closet.cat !== 'all' && state.closet.cat !== 'fav' ? state.closet.cat : 'top', colors: [], seasons: [], brand: '', notes: '', photo: null };
+    let photo = i.photo;
+    openSheet(`
+      ${head(existing ? 'Edit item' : 'Add item')}
+      <form id="itemForm" novalidate>
+        <label class="photo-pick" for="f-photo" id="photoPick">
+          ${photo ? `<img src="${photo}" alt="">` : silhouette({ category: i.category, colors: i.colors.length ? i.colors : ['grey'] })}
+          <span class="hint">${photo ? 'Change photo' : 'Take or choose photo'}</span>
+        </label>
+        <input type="file" id="f-photo" accept="image/*" hidden>
+        ${photo ? '<div style="margin-top:8px"><button type="button" class="linkbtn" id="rmPhoto">Remove photo</button></div>' : ''}
+        <div class="field"><label for="f-name">Name</label>
+          <input class="input" id="f-name" name="name" value="${esc(i.name)}" placeholder="e.g. Navy wool sweater" required maxlength="80"></div>
+        <div class="field"><span class="lbl">Category</span>
+          <div class="chips" style="flex-wrap:wrap">${CATS.map(c => `<input class="chip-input" type="radio" name="category" id="f-cat-${c.id}" value="${c.id}" ${i.category === c.id ? 'checked' : ''}><label class="chip" for="f-cat-${c.id}">${c.one}</label>`).join('')}</div></div>
+        <div class="field"><span class="lbl">Colors (up to 2)</span>
+          <div class="swatches">${Object.entries(COLORS).map(([k, hex]) => `<input class="chip-input" type="checkbox" name="colors" id="f-col-${k}" value="${k}" ${i.colors.includes(k) ? 'checked' : ''}><label class="sw" for="f-col-${k}" style="background:${hex}" title="${k}"><span class="sr" hidden>${k}</span></label>`).join('')}</div></div>
+        <div class="field"><span class="lbl">Seasons</span>
+          <div class="chips" style="flex-wrap:wrap">${SEASONS.map(s => `<input class="chip-input" type="checkbox" name="seasons" id="f-sea-${s}" value="${s}" ${i.seasons.includes(s) ? 'checked' : ''}><label class="chip" for="f-sea-${s}">${s}</label>`).join('')}</div></div>
+        <div class="field"><label for="f-brand">Brand</label><input class="input" id="f-brand" name="brand" value="${esc(i.brand)}" maxlength="60" placeholder="Optional"></div>
+        <div class="field"><label for="f-notes">Notes</label><textarea class="input" id="f-notes" name="notes" maxlength="500" placeholder="Size, fit, where you bought it…">${esc(i.notes)}</textarea></div>
+        <div class="actions"><button class="btn primary block" type="submit" id="saveItem">${existing ? 'Save changes' : 'Add to closet'}</button></div>
+      </form>
+    `, sheet => {
+      const form = $('#itemForm', sheet);
+      const fileIn = $('#f-photo', sheet);
+      const refreshPreview = () => {
+        const fd = new FormData(form);
+        const box = $('#photoPick', sheet);
+        const cols = fd.getAll('colors');
+        box.innerHTML = (photo ? `<img src="${photo}" alt="">` : silhouette({ category: fd.get('category'), colors: cols.length ? cols : ['grey'] })) +
+          `<span class="hint">${photo ? 'Change photo' : 'Take or choose photo'}</span>`;
+      };
+      form.addEventListener('change', e => {
+        if (e.target.name === 'colors') {
+          const checked = form.querySelectorAll('input[name="colors"]:checked');
+          if (checked.length > 2) { e.target.checked = false; toast('Pick up to 2 colors'); }
+        }
+        if (!photo && (e.target.name === 'colors' || e.target.name === 'category')) refreshPreview();
+      });
+      fileIn.addEventListener('change', async () => {
+        const f = fileIn.files && fileIn.files[0]; if (!f) return;
+        $('#saveItem', sheet).disabled = true;
+        try { photo = await compress(f); refreshPreview(); }
+        catch (e) { toast("That photo couldn't be read. Try a JPG or PNG."); }
+        $('#saveItem', sheet).disabled = false;
+        fileIn.value = '';
+      });
+      const rm = $('#rmPhoto', sheet);
+      if (rm) rm.addEventListener('click', () => { photo = null; rm.remove(); refreshPreview(); });
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const name = String(fd.get('name') || '').trim();
+        if (!name) { toast('Give it a name first'); $('#f-name', sheet).focus(); return; }
+        const rec = {
+          ...(existing || { id: uid(), created: Date.now(), wornCount: 0, lastWorn: null, fav: false }),
+          name, category: fd.get('category') || 'top', colors: fd.getAll('colors'), seasons: fd.getAll('seasons'),
+          brand: String(fd.get('brand') || '').trim(), notes: String(fd.get('notes') || '').trim(), photo,
+        };
+        if (existing) { const idx = state.items.findIndex(x => x.id === rec.id); state.items[idx] = rec; }
+        else state.items.push(rec);
+        await save('items', rec);
+        closeSheet(); render();
+        toast(existing ? 'Saved' : 'Added to closet');
+      });
+    });
+  }
+
+  function compress(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const max = 900, scale = Math.min(1, max / Math.max(img.width, img.height));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * scale); cv.height = Math.round(img.height * scale);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        resolve(cv.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+      img.src = url;
+    });
+  }
+
+  function openOutfit(id) {
+    const o = state.outfits.find(x => x.id === id); if (!o) return;
+    const its = o.itemIds.map(itemById).filter(Boolean);
+    const worn = o.wornDates || [];
+    openSheet(`
+      ${head(esc(o.name))}
+      <div style="border-radius:var(--radius);overflow:hidden">${collage(o.itemIds)}</div>
+      <dl class="label-card">
+        ${o.occasion ? `<div><dt>Occasion</dt><dd>${esc(o.occasion)}</dd></div>` : ''}
+        <div><dt>Worn</dt><dd>${worn.length} times</dd></div>
+        <div><dt>Last worn</dt><dd>${daysAgo(worn.slice(-1)[0])}</dd></div>
+      </dl>
+      <div class="section-lbl">${its.length} piece${its.length === 1 ? '' : 's'}</div>
+      <div class="mini-row">${its.map(i => `<button class="mini" data-action="open-item" data-id="${i.id}"><div class="pic">${pic(i)}</div><span>${esc(i.name)}</span></button>`).join('')}</div>
+      <div class="actions"><button class="btn primary block" data-action="wear-outfit" data-id="${o.id}">Wore this today</button></div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn" data-action="edit-outfit" data-id="${o.id}">Edit</button>
+        <button class="btn danger" data-action="delete-outfit" data-id="${o.id}" data-confirm="Tap again to delete">Delete</button>
+      </div>
+    `);
+  }
+
+  function outfitForm(existing) {
+    if (!state.items.length) { toast('Add some clothes to your closet first'); return; }
+    const sel = new Set(existing ? existing.itemIds : []);
+    let filter = 'all';
+    openSheet(`
+      ${head(existing ? 'Edit outfit' : 'New outfit')}
+      <form id="outfitForm" novalidate>
+        <div class="field" style="margin-top:4px"><label for="o-name">Name</label>
+          <input class="input" id="o-name" name="name" value="${esc(existing?.name || '')}" placeholder="e.g. Rainy Monday" maxlength="60"></div>
+        <div class="field"><span class="lbl">Occasion</span>
+          <div class="chips" style="flex-wrap:wrap">${OCCASIONS.map(x => `<input class="chip-input" type="radio" name="occasion" id="o-occ-${x.replace(/\s/g, '')}" value="${x}" ${existing?.occasion === x ? 'checked' : ''}><label class="chip" for="o-occ-${x.replace(/\s/g, '')}">${x}</label>`).join('')}</div></div>
+        <div class="field"><span class="lbl">Pieces · <span id="selCount">${sel.size}</span> selected</span>
+          <div class="chips" id="pickFilter">${[{ id: 'all', label: 'All' }, ...CATS.filter(c => state.items.some(i => i.category === c.id))].map(c => `<button type="button" class="chip" data-f="${c.id}" aria-pressed="${c.id === 'all'}">${c.label}</button>`).join('')}</div>
+          <div class="picker-grid" id="picker"></div></div>
+        <div class="actions"><button class="btn primary block" type="submit">${existing ? 'Save outfit' : 'Create outfit'}</button></div>
+      </form>
+    `, sheet => {
+      const picker = $('#picker', sheet);
+      const drawPicker = () => {
+        silN = 2000;
+        const list = state.items.filter(i => filter === 'all' || i.category === filter).sort((a, b) => CATS.findIndex(c => c.id === a.category) - CATS.findIndex(c => c.id === b.category));
+        picker.innerHTML = list.map(i => `<button type="button" class="card ${sel.has(i.id) ? 'sel' : ''}" data-pick="${i.id}" aria-pressed="${sel.has(i.id)}">
+          <div class="pic">${pic(i)}</div><span class="check">${sel.has(i.id) ? '✓' : ''}</span>
+          <div class="body"><span class="name">${esc(i.name)}</span></div></button>`).join('');
+        $('#selCount', sheet).textContent = sel.size;
+      };
+      drawPicker();
+      $('#pickFilter', sheet).addEventListener('click', e => {
+        const b = e.target.closest('[data-f]'); if (!b) return;
+        filter = b.dataset.f;
+        sheet.querySelectorAll('#pickFilter .chip').forEach(c => c.setAttribute('aria-pressed', c === b));
+        drawPicker();
+      });
+      picker.addEventListener('click', e => {
+        const b = e.target.closest('[data-pick]'); if (!b) return;
+        const id = b.dataset.pick;
+        sel.has(id) ? sel.delete(id) : sel.add(id);
+        drawPicker();
+      });
+      $('#outfitForm', sheet).addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!sel.size) { toast('Pick at least one piece'); return; }
+        const fd = new FormData(e.target);
+        const name = String(fd.get('name') || '').trim() || `Outfit ${state.outfits.length + 1}`;
+        const rec = { ...(existing || { id: uid(), created: Date.now(), wornDates: [] }), name, occasion: fd.get('occasion') || '', itemIds: [...sel] };
+        if (existing) { const idx = state.outfits.findIndex(x => x.id === rec.id); state.outfits[idx] = rec; }
+        else state.outfits.push(rec);
+        await save('outfits', rec);
+        closeSheet(); state.view = 'outfits'; persistView(); render();
+        toast(existing ? 'Outfit saved' : 'Outfit created');
+      });
+    });
+  }
+
+  // ---------- Actions ----------
+  async function wearItems(ids) {
+    const d = today();
+    for (const id of ids) {
+      const i = itemById(id); if (!i) continue;
+      i.wornCount = (i.wornCount || 0) + 1; i.lastWorn = d;
+      await save('items', i);
+    }
+  }
+
+  async function removeSamples() {
+    const ids = state.items.filter(i => i.sample).map(i => i.id);
+    for (const id of ids) await Store.del('items', id);
+    state.items = state.items.filter(i => !i.sample);
+    for (const o of state.outfits.filter(o => o.sample)) await Store.del('outfits', o.id);
+    state.outfits = state.outfits.filter(o => !o.sample);
+    for (const o of state.outfits) {
+      const before = o.itemIds.length;
+      o.itemIds = o.itemIds.filter(id => !ids.includes(id));
+      if (o.itemIds.length !== before) await save('outfits', o);
+    }
+    render(); toast('Examples removed');
+  }
+
+  function persistView() { try { localStorage.setItem('nd-view', state.view); } catch (e) {} }
+
+  // Two-step confirm for destructive buttons (dialogs aren't available)
+  function confirmed(btn) {
+    if (btn.dataset.armed === '1') return true;
+    btn.dataset.armed = '1'; btn.dataset.orig = btn.textContent; btn.textContent = btn.dataset.confirm; btn.classList.add('armed');
+    setTimeout(() => { if (btn.isConnected) { btn.dataset.armed = ''; btn.textContent = btn.dataset.orig; btn.classList.remove('armed'); } }, 3500);
+    return false;
+  }
+
+  document.addEventListener('click', async e => {
+    const tab = e.target.closest('[data-tab]');
+    if (tab) { state.view = tab.dataset.tab; persistView(); render(); window.scrollTo(0, 0); return; }
+    const b = e.target.closest('[data-action]'); if (!b) return;
+    const id = b.dataset.id;
+    switch (b.dataset.action) {
+      case 'close-sheet': closeSheet(); break;
+      case 'add-item': itemForm(); break;
+      case 'new-outfit': outfitForm(); break;
+      case 'cat': state.closet.cat = b.dataset.v; render(); break;
+      case 'color': state.closet.color = state.closet.color === b.dataset.v ? null : b.dataset.v; render(); break;
+      case 'reset-filters': state.closet = { q: '', cat: 'all', color: null, sort: state.closet.sort }; render(); break;
+      case 'open-item': openItem(id); break;
+      case 'edit-item': itemForm(itemById(id)); break;
+      case 'fav': { const i = itemById(id); i.fav = !i.fav; await save('items', i); render(); openItem(id); break; }
+      case 'wear-item': {
+        const i = itemById(id);
+        if (i.lastWorn === today()) { toast('Already logged for today'); break; }
+        await wearItems([id]); render(); openItem(id); toast('Logged for today'); break;
+      }
+      case 'delete-item': {
+        if (!confirmed(b)) break;
+        state.items = state.items.filter(i => i.id !== id); await Store.del('items', id);
+        for (const o of state.outfits.filter(o => o.itemIds.includes(id))) { o.itemIds = o.itemIds.filter(x => x !== id); await save('outfits', o); }
+        closeSheet(); render(); toast('Deleted'); break;
+      }
+      case 'open-outfit': openOutfit(id); break;
+      case 'edit-outfit': outfitForm(state.outfits.find(o => o.id === id)); break;
+      case 'wear-outfit': {
+        const o = state.outfits.find(x => x.id === id);
+        o.wornDates = o.wornDates || [];
+        if (o.wornDates.includes(today())) { toast('Already logged for today'); break; }
+        o.wornDates.push(today()); await save('outfits', o);
+        await wearItems(o.itemIds.filter(x => itemById(x)?.lastWorn !== today()));
+        render(); openOutfit(id); toast('Logged outfit for today'); break;
+      }
+      case 'delete-outfit': {
+        if (!confirmed(b)) break;
+        state.outfits = state.outfits.filter(o => o.id !== id); await Store.del('outfits', id);
+        closeSheet(); render(); toast('Outfit deleted'); break;
+      }
+      case 'remove-samples': await removeSamples(); break;
+      case 'wipe': {
+        if (!confirmed(b)) break;
+        await Store.clear('items'); await Store.clear('outfits');
+        state.items = []; state.outfits = []; render(); toast('Closet erased'); break;
+      }
+    }
+  });
+
+  $('#fab').addEventListener('click', () => state.view === 'outfits' ? outfitForm() : itemForm());
+  document.addEventListener('input', e => {
+    if (e.target.id === 'q') {
+      state.closet.q = e.target.value;
+      const pos = e.target.selectionStart;
+      render();
+      const q = $('#q'); if (q) { q.focus(); try { q.setSelectionRange(pos, pos); } catch (err) {} }
+    }
+  });
+  document.addEventListener('change', e => { if (e.target.id === 'sort') { state.closet.sort = e.target.value; render(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheetRoot').hidden) closeSheet(); });
+
+  // ---------- Examples (first run only) ----------
+  function sampleData() {
+    const t = Date.now();
+    const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+    const mk = (id, name, category, colors, seasons, brand, wornCount, lastWornDays, extra = {}) => ({
+      id, name, category, colors, seasons, brand, notes: '', photo: null, fav: false, wornCount,
+      lastWorn: lastWornDays == null ? null : d(lastWornDays), created: t - Number(id.slice(1)) * 1000, sample: true, ...extra,
+    });
+    const all = ['Spring', 'Summer', 'Fall', 'Winter'];
+    const items = [
+      mk('s1', 'White oxford shirt', 'top', ['white'], all, 'Uniqlo', 14, 2, { fav: true, notes: 'Size M. Iron on medium.' }),
+      mk('s2', 'Navy crewneck sweater', 'top', ['navy'], ['Fall', 'Winter'], 'COS', 9, 5),
+      mk('s3', 'Breton striped top', 'top', ['white', 'navy'], ['Spring', 'Summer'], 'Saint James', 6, 12),
+      mk('s4', 'Black tee', 'top', ['black'], all, '', 21, 1),
+      mk('s5', 'Dark wash jeans', 'bottom', ['blue'], all, "Levi's", 25, 1, { fav: true, notes: '501, W30 L32.' }),
+      mk('s6', 'Beige chinos', 'bottom', ['beige'], ['Spring', 'Summer', 'Fall'], '', 7, 9),
+      mk('s7', 'Black midi dress', 'dress', ['black'], all, '', 3, 40),
+      mk('s8', 'Camel wool coat', 'outer', ['beige'], ['Fall', 'Winter'], '', 11, 5),
+      mk('s9', 'Olive field jacket', 'outer', ['olive'], ['Spring', 'Fall'], '', 0, null),
+      mk('s10', 'White leather sneakers', 'shoes', ['white'], ['Spring', 'Summer', 'Fall'], '', 30, 1),
+      mk('s11', 'Brown Chelsea boots', 'shoes', ['brown'], ['Fall', 'Winter'], '', 12, 5),
+      mk('s12', 'Black canvas tote', 'bag', ['black'], all, '', 18, 2),
+      mk('s13', 'Grey beanie', 'acc', ['grey'], ['Winter'], '', 0, null),
+    ];
+    const outfits = [
+      { id: 'so1', name: 'Office Monday', occasion: 'Work', itemIds: ['s1', 's6', 's11', 's8'], wornDates: [d(19), d(5)], created: t - 3000, sample: true },
+      { id: 'so2', name: 'Weekend coffee', occasion: 'Casual', itemIds: ['s3', 's5', 's10', 's12'], wornDates: [d(12)], created: t - 2000, sample: true },
+      { id: 'so3', name: 'Dinner out', occasion: 'Going out', itemIds: ['s7', 's8', 's11'], wornDates: [], created: t - 1000, sample: true },
+    ];
+    return { items, outfits };
+  }
+
+  async function boot() {
+    await Store.open();
+    state.items = await Store.all('items');
+    state.outfits = await Store.all('outfits');
+    const meta = await Store.all('meta');
+    if (!meta.some(m => m.id === 'seeded')) {
+      const s = sampleData();
+      state.items = s.items; state.outfits = s.outfits;
+      for (const i of s.items) await Store.put('items', i);
+      for (const o of s.outfits) await Store.put('outfits', o);
+      await Store.put('meta', { id: 'seeded', at: Date.now() });
+    }
+    render();
+  }
+  boot();
+})();
+</script>
