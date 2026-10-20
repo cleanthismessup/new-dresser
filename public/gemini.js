@@ -76,18 +76,21 @@ export function parseJson(text) {
   throw new GeminiError('garbled', 'The answer came back garbled. Try again.');
 }
 
-async function generate(parts, { search = true, signal } = {}) {
+const SEARCH = [{ google_search: {} }];
+
+async function generate(parts, { tools = SEARCH, signal } = {}) {
   const model = getModel();
   if (!model) throw new GeminiError('no_key', 'Add your Gemini key in settings first.');
   const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.2 } };
-  if (search) body.tools = [{ google_search: {} }];
-  let data;
-  try { data = await call(`models/${model}:generateContent`, { body, signal }); }
-  catch (e) {
-    // Some free-tier models or quotas don't allow search: answer from the photo alone
-    if (search && (e.code === 'upstream' || e.code === 'quota')) data = await call(`models/${model}:generateContent`, { body: { ...body, tools: undefined }, signal });
-    else throw e;
+  // Some free-tier models or quotas don't allow every tool: drop tools one at a time, then answer without any
+  const attempts = [];
+  for (let n = tools.length; n >= 0; n--) attempts.push(tools.slice(0, n));
+  let data, lastErr;
+  for (const t of attempts) {
+    try { data = await call(`models/${model}:generateContent`, { body: { ...body, tools: t.length ? t : undefined }, signal }); break; }
+    catch (e) { lastErr = e; if (!(e.code === 'upstream' || e.code === 'quota') || !t.length) throw e; }
   }
+  if (!data) throw lastErr;
   const cand = data.candidates?.[0];
   const text = (cand?.content?.parts || []).map(p => p.text || '').join('');
   if (!text.trim()) throw new GeminiError('empty', cand?.finishReason === 'SAFETY' ? "Gemini wouldn't work with this photo." : 'Gemini returned nothing. Try again.');
@@ -101,6 +104,35 @@ export async function recognizeItem({ prompt, photo, label, signal }) {
   const { text, sources } = await generate(parts, { signal });
   const r = parseJson(text);
   if (!r || typeof r !== 'object' || Array.isArray(r)) throw new GeminiError('garbled', 'The answer came back garbled. Try again.');
+  r.sources = sources;
+  return r;
+}
+
+// Finds a product from a store link or a description ("Levi's 501 black") and returns its details
+export async function lookupProduct({ url, text, categories, colors, signal }) {
+  const given = url ? `this product page: ${url}` : `this description: "${text}"`;
+  const prompt = `Find this clothing product and its details. The user gave ${given}.
+${url ? 'Read that page. If you cannot open it, search the web for the product it points to.' : 'Search the web for the most likely exact product.'}
+Reply with only a JSON object:
+{"found": true or false,
+ "name": "short name including brand and model, e.g. \"Levi's 501 Original Fit Jeans\"",
+ "brand": "brand or null", "model": "exact model or null",
+ "category": "one of ${categories.join(', ')}",
+ "colors": ["1 or 2 of: ${colors.join(', ')}"],
+ "seasons": ["any of: Spring, Summer, Fall, Winter"],
+ "warmth": 1 for light, 2 for medium, 3 for warm,
+ "washEvery": wears before washing (1, 2, 3, 5 or 10), or 0 if not machine washed,
+ "price": current price as a number or null, "currency": "3-letter code or null",
+ "store": "site name", "url": "product page address",
+ "images": ["up to 6 direct https addresses of this product's photos from the page or search results"],
+ "confidence": "high, medium or low: how sure you are this is the exact product",
+ "evidence": "under 12 words: where the details came from"}
+If you cannot find it, reply {"found": false}. Never invent prices or image addresses.`;
+  const { text: out, sources } = await generate([{ text: prompt }], { tools: url ? [...SEARCH, { url_context: {} }] : SEARCH, signal });
+  const r = parseJson(out);
+  if (!r || typeof r !== 'object' || Array.isArray(r)) throw new GeminiError('garbled', 'The answer came back garbled. Try again.');
+  r.images = (Array.isArray(r.images) ? r.images : []).map(u => String(u || '').trim()).filter(u => /^https:\/\/\S+$/.test(u)).slice(0, 6);
+  r.price = typeof r.price === 'number' && r.price >= 0 ? Math.round(r.price * 100) / 100 : null;
   r.sources = sources;
   return r;
 }

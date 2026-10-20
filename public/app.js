@@ -182,7 +182,7 @@ async function save(store, obj) {
 function normalizeItem(i) {
   return {
     colors: [], seasons: [], brand: '', notes: '', photo: null, fav: false, wornCount: 0, lastWorn: null,
-    model: '', price: null, warmth: WARMTH_DEFAULT[i.category] || 1, washEvery: WASH_DEFAULT[i.category] ?? 1,
+    model: '', link: '', price: null, warmth: WARMTH_DEFAULT[i.category] || 1, washEvery: WASH_DEFAULT[i.category] ?? 1,
     wearsSinceWash: 0, status: 'clean', delicate: false, lastWashed: null, ...i,
   };
 }
@@ -617,6 +617,7 @@ function openItem(id) {
       <div><dt>Season</dt><dd>${(i.seasons || []).length === 4 ? 'All year' : (i.seasons || []).map(s => SEASON_ABBR[s]).join(' / ') || '—'} · ${WARMTH.find(x => x.v === i.warmth)?.label || ''}</dd></div>
       ${i.brand ? `<div><dt>Brand</dt><dd>${esc(i.brand)}</dd></div>` : ''}
       ${i.model ? `<div><dt>Model</dt><dd>${esc(i.model)}</dd></div>` : ''}
+      ${/^https?:\/\//.test(i.link || '') ? `<div><dt>Link</dt><dd><a href="${esc(i.link)}" target="_blank" rel="noopener" style="color:var(--fg)">Open product page</a></dd></div>` : ''}
       <div><dt>Price</dt><dd>${money(i.price)}</dd></div>
       <div><dt>Cost per wear</dt><dd>${cpw == null ? '—' : money(cpw)}</dd></div>
       <div><dt>Worn</dt><dd>${i.wornCount || 0}× · last ${daysAgo(i.lastWorn).toLowerCase()}</dd></div>
@@ -646,6 +647,13 @@ function itemForm({ existing, prefill, fromWishId } = {}) {
   openSheet(`
     ${head(existing ? 'Edit item' : fromWishId ? 'Add your new piece' : 'Add item')}
     <form id="itemForm" novalidate>
+      ${existing ? '' : `<div class="lookup" id="lookupBox">
+        <label class="lbl" for="f-lookup">Add from a link or name</label>
+        <div class="row" style="flex-wrap:nowrap"><input class="input" id="f-lookup" autocomplete="off" placeholder="Paste a store link, or type e.g. Levi's 501 black">
+          <button type="button" class="btn" id="lookupBtn" style="flex:none">Find</button></div>
+        <div id="lookupOut"></div>
+      </div>
+      <div class="or">or start from a photo (optional)</div>`}
       <label class="photo-pick" for="f-photo" id="photoPick"></label>
       <input type="file" id="f-photo" accept="image/*" hidden>
       <div style="margin-top:8px" id="rmWrap" ${ph.photo ? '' : 'hidden'}><button type="button" class="linkbtn" id="rmPhoto">Remove photo</button></div>
@@ -662,6 +670,7 @@ function itemForm({ existing, prefill, fromWishId } = {}) {
         <div class="field"><label for="f-brand">Brand</label><input class="input" id="f-brand" name="brand" value="${esc(i.brand)}" maxlength="60" placeholder="Optional"></div>
       </div>
       <div class="field"><label for="f-model">Model</label><input class="input" id="f-model" name="model" value="${esc(i.model || '')}" maxlength="80" placeholder="e.g. Air Force 1 '07 (optional)"></div>
+      <div class="field"><label for="f-link">Product link</label><input class="input" id="f-link" name="link" value="${esc(i.link || '')}" inputmode="url" autocomplete="off" placeholder="Optional"></div>
       <div class="field"><span class="lbl">Seasons</span>
         <div class="chips wrapping">${SEASONS.map(s => `<input class="chip-input" type="checkbox" name="seasons" id="f-sea-${s}" value="${s}" ${i.seasons.includes(s) ? 'checked' : ''}><label class="chip" for="f-sea-${s}">${s}</label>`).join('')}</div></div>
       <div class="field"><span class="lbl">How warm is it?</span>
@@ -680,12 +689,13 @@ function itemForm({ existing, prefill, fromWishId } = {}) {
       const cols = fd.getAll('colors');
       const shown = ph.official || ph.photo;
       $('#photoPick', sheet).innerHTML = (shown ? `<img src="${esc(shown)}" alt="" referrerpolicy="no-referrer" ${ph.official && ph.photo ? `data-fb-src="${esc(ph.photo)}"` : ''}>` : silhouette({ category: fd.get('category'), colors: cols.length ? cols : ['grey'] })) +
-        `<span class="hint">${shown ? 'Change photo' : 'Take or choose photo'}</span>`;
+        `<span class="hint">${shown ? 'Change photo' : 'Take or choose a photo'}</span>`;
       $('#rmWrap', sheet).hidden = !shown;
       ai.draw();
     };
     ph.refresh = refreshPreview;
     const ai = photoTools(sheet, form, ph, fill => { washTouched = washTouched || fill; });
+    if (!existing) lookupTools(sheet, ai);
     refreshPreview();
     form.addEventListener('change', e => {
       if (e.target.name === 'colors' && form.querySelectorAll('input[name="colors"]:checked').length > 2) { e.target.checked = false; toast('Pick up to 2 colors'); }
@@ -717,6 +727,7 @@ function itemForm({ existing, prefill, fromWishId } = {}) {
         id: existing?.id || uid(), created: existing?.created || Date.now(),
         name, category: fd.get('category') || 'top', colors: fd.getAll('colors'), seasons: fd.getAll('seasons'),
         brand: String(fd.get('brand') || '').trim(), model: String(fd.get('model') || '').trim(), notes: String(fd.get('notes') || '').trim(), photo: ph.photo, officialUrl: ph.official,
+        link: /^https?:\/\//i.test(String(fd.get('link') || '').trim()) ? String(fd.get('link')).trim() : '',
         price: parsePrice(fd.get('price')), warmth: Number(fd.get('warmth')) || 1, washEvery, delicate: fd.get('delicate') === 'on',
       };
       if (!washEvery) { rec.status = 'clean'; rec.wearsSinceWash = 0; }
@@ -784,19 +795,18 @@ function photoTools(sheet, form, ph, markWash) {
     const labelRow = `<div class="row">${label ? `<img class="label-thumb" src="${label}" alt="Label photo">` : ''}
       <button type="button" class="linkbtn" data-ai="label">${label ? 'Change label photo' : 'Add a photo of the label for a better match'}</button></div>`;
     let ai = '';
-    if (!hasPhoto) ai = '';
+    if (!hasPhoto && !(st === 'done' && result)) ai = '';
     else if (!setUp) ai = `<span class="sub">Add your free Gemini key in settings to recognize brand and model automatically.</span><div class="row"><button type="button" class="btn small" data-action="settings">Open settings</button></div>`;
     else if (st === 'thinking') ai = `<span class="thinking">Looking at your photo and searching for the model…</span><div class="row"><button type="button" class="btn small" data-ai="stop">Stop</button></div>`;
     else if (st === 'done' && result) {
       const r = result, known = r.brand || r.model;
       ai = `
-        <div class="row between"><span class="sub">${known ? 'Looks like' : 'Couldn\'t pin down the exact model'}</span><span class="pill ${r.confidence === 'high' ? 'good' : r.confidence === 'medium' ? '' : 'warn'}">${esc(r.confidence)} confidence</span></div>
+        <div class="row between"><span class="sub">${result.fromLookup ? `From ${esc(r.store || 'the web')}` : known ? 'Looks like' : 'Couldn\'t pin down the exact model'}</span><span class="pill ${r.confidence === 'high' ? 'good' : r.confidence === 'medium' ? '' : 'warn'}">${esc(r.confidence)} confidence</span></div>
         <div class="who">${esc(known ? [r.brand, r.model].filter(Boolean).join(' · ') : r.name)}</div>
         ${r.evidence ? `<span class="sub">From: ${esc(r.evidence)}</span>` : ''}
         <span class="sub">I filled in the fields below. Check them before saving.</span>
         ${photoPicker()}
-        ${labelRow}
-        <div class="row"><button type="button" class="btn small" data-ai="run">Try again</button></div>`;
+        ${hasPhoto ? `${labelRow}<div class="row"><button type="button" class="btn small" data-ai="run">${result.fromLookup ? 'Recognize my photo instead' : 'Try again'}</button></div>` : ''}`;
     } else ai = `
         <span class="sub">${st === 'error' ? esc(err) : 'Recognize the brand, model, colors and type from your photo.'}</span>
         ${labelRow}
@@ -807,11 +817,11 @@ function photoTools(sheet, form, ph, markWash) {
 
   function photoPicker() {
     if (photoSt === 'searching') return `<span class="sub thinking">Looking for the official product photo…</span>`;
-    if (photoSt === 'none') return `<span class="sub">No official photo found. Keep yours, or make it look like a product shot with Remove background or Paste cutout.</span>`;
+    if (photoSt === 'none') return ph.photo ? `<span class="sub">No official photo found. Keep yours, or make it look like a product shot with Remove background or Paste cutout.</span>` : `<span class="sub">No product photo found. You can add your own photo above, or save without one.</span>`;
     if (photoSt !== 'found') return '';
     return `<div class="section-lbl" style="margin:4px 0 0">Use the official photo?</div>
       <div class="cand-row">${photos.map((p, k) => `<button type="button" class="cand ${ph.official === p.url ? 'sel' : ''}" data-ai="pick" data-k="${k}"><img src="${esc(p.url)}" alt="" referrerpolicy="no-referrer" loading="lazy"><span>${esc(p.source)}</span></button>`).join('')}</div>
-      <div class="row"><button type="button" class="linkbtn" data-ai="keep">${ph.official ? 'Use my own photo instead' : 'Keep my photo'}</button></div>`;
+      <div class="row"><button type="button" class="linkbtn" data-ai="keep">${!ph.official && !ph.photo ? 'No photo' : ph.photo && !ph.official ? 'Keep my photo' : 'Don\'t use this photo'}</button></div>`;
   }
 
   function apply(r) {
@@ -926,7 +936,85 @@ function photoTools(sheet, form, ph, markWash) {
     catch (e) { toast("That photo couldn't be read."); }
     labelIn.value = '';
   });
-  return { draw, reset() { ctl?.abort(); st = 'idle'; result = null; label = null; photos = []; photoSt = 'idle'; } };
+  // Details found from a link or name: fill the form and offer the product's own photos
+  async function useLookup(r) {
+    ctl?.abort(); ctl = new AbortController();
+    result = { ...r, fromLookup: true }; st = 'done'; apply(r);
+    photos = []; photoSt = r.images.length ? 'searching' : 'idle'; draw();
+    if (r.images.length) {
+      const ok = await Promise.all(r.images.map(loads));
+      photos = r.images.filter((u, k) => ok[k]).map(url => ({ url, source: r.store || '' }));
+      photoSt = photos.length ? 'found' : 'idle';
+    }
+    if (!photos.length) await searchPhotos(r, ctl.signal);
+    draw();
+  }
+
+  return { draw, useLookup, loads, reset() { ctl?.abort(); st = 'idle'; result = null; label = null; photos = []; photoSt = 'idle'; } };
+}
+
+// "Add from a link or name": look the product up, show it, and fill the form only after the user confirms
+function lookupTools(sheet, tools) {
+  const input = $('#f-lookup', sheet), btn = $('#lookupBtn', sheet), out = $('#lookupOut', sheet);
+  let ctl = null, found = null;
+  const isUrl = v => /^https?:\/\/\S+$/i.test(v);
+
+  async function find() {
+    const v = input.value.trim();
+    if (!v) { toast('Paste a link or type a name first'); input.focus(); return; }
+    if (!Gemini.isSetUp()) {
+      if (isUrl(v)) { $('#f-link', sheet).value = v; out.innerHTML = `<p class="sub">Link saved below. Add your free Gemini key in settings to fill in the details automatically, or fill them in by hand.</p>`; }
+      else out.innerHTML = `<p class="sub">Looking up a name needs your free Gemini key. <button type="button" class="linkbtn" data-action="settings">Open settings</button></p>`;
+      return;
+    }
+    ctl?.abort(); ctl = new AbortController();
+    btn.disabled = true;
+    out.innerHTML = `<div class="row"><span class="sub thinking">${isUrl(v) ? 'Reading the product page…' : 'Searching for it…'}</span><button type="button" class="linkbtn" data-lk="stop">Stop</button></div>`;
+    try {
+      const r = await Gemini.lookupProduct({ url: isUrl(v) ? v : null, text: isUrl(v) ? null : v, categories: CATS.map(c => c.id), colors: Object.keys(COLORS), signal: ctl.signal });
+      if (!r.found || !r.name) { out.innerHTML = `<p class="sub">Couldn't find that product. Check the link, or try a more exact name with the brand.</p>`; return; }
+      if (isUrl(v) && !r.url) r.url = v;
+      r.confidence = ['high', 'medium', 'low'].includes(r.confidence) ? r.confidence : 'low';
+      found = r;
+      const ok = await Promise.all(r.images.slice(0, 3).map(tools.loads));
+      const thumb = r.images.slice(0, 3).find((u, k) => ok[k]);
+      const cat = CAT[r.category] ? r.category : 'top';
+      const cols = (r.colors || []).filter(c => COLORS[c]);
+      let priceNote = '';
+      if (r.price != null) {
+        try { priceNote = new Intl.NumberFormat(undefined, { style: 'currency', currency: /^[A-Z]{3}$/.test(r.currency || '') ? r.currency : state.settings.currency }).format(r.price); }
+        catch (e) { priceNote = String(r.price); }
+      }
+      out.innerHTML = `<div class="found">
+        <div class="pic">${thumb ? `<img src="${esc(thumb)}" alt="" referrerpolicy="no-referrer">` : silhouette({ category: cat, colors: cols.length ? cols : ['grey'] })}</div>
+        <div class="body">
+          <span class="pill ${r.confidence === 'high' ? 'good' : r.confidence === 'medium' ? '' : 'warn'}">${esc(r.confidence)} confidence</span>
+          <b>${esc(r.name)}</b>
+          <span class="sub">${[r.brand, CAT[cat].one, priceNote, r.store].filter(Boolean).map(esc).join(' · ')}</span>
+        </div>
+      </div>
+      <p class="sub" style="margin:8px 0 0">Is this your piece?</p>
+      <div class="row"><button type="button" class="btn primary small" data-lk="yes">Yes, use these details</button><button type="button" class="btn small" data-lk="no">Not it</button></div>`;
+    } catch (e) {
+      out.innerHTML = e?.code === 'cancelled' ? '' : `<p class="sub">${esc(e?.message || 'Something went wrong. Try again.')}</p>`;
+    } finally { btn.disabled = false; }
+  }
+
+  btn.addEventListener('click', find);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); find(); } });
+  out.addEventListener('click', e => {
+    const a = e.target.closest('[data-lk]')?.dataset.lk;
+    if (a === 'stop') ctl?.abort();
+    else if (a === 'no') { found = null; out.innerHTML = `<p class="sub">Try a different link or a more exact name.</p>`; input.focus(); }
+    else if (a === 'yes' && found) {
+      const r = found;
+      const price = $('#f-price', sheet);
+      if (r.price != null && !price.value) price.value = r.price;
+      if (r.url && isUrl(r.url)) $('#f-link', sheet).value = r.url;
+      out.innerHTML = `<p class="sub">Filled in from ${esc(r.store || 'the web')}. Check the details below, then tap Add to closet.</p>`;
+      tools.useLookup(r);
+    }
+  });
 }
 
 // Shrinks a photo for storage. Keeps PNG when the image has transparency (cutouts), else JPEG.
