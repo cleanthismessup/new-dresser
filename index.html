@@ -227,6 +227,14 @@ textarea.input { min-height: 72px; resize: vertical; }
 .photo-pick img { width: 100%; height: 100%; object-fit: cover; }
 .photo-pick .sil { width: 40%; height: 60%; }
 .photo-pick .hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.ai { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; margin-top: 10px; display: grid; gap: 10px; }
+.ai .who { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; text-wrap: balance; }
+.ai .sub a { color: var(--fg); font-weight: 600; }
+.ai .row .btn { flex: 1 1 140px; }
+.label-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: var(--surface-2); }
+@keyframes pulse { 50% { opacity: 0.4; } }
+.thinking { animation: pulse 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .thinking { animation: none; } }
 .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 .actions .btn { flex: 1 1 140px; }
 
@@ -505,7 +513,7 @@ textarea.input { min-height: 72px; resize: vertical; }
   function normalizeItem(i) {
     return {
       colors: [], seasons: [], brand: '', notes: '', photo: null, fav: false, wornCount: 0, lastWorn: null,
-      price: null, warmth: WARMTH_DEFAULT[i.category] || 1, washEvery: WASH_DEFAULT[i.category] ?? 1,
+      model: '', price: null, warmth: WARMTH_DEFAULT[i.category] || 1, washEvery: WASH_DEFAULT[i.category] ?? 1,
       wearsSinceWash: 0, status: 'clean', delicate: false, lastWashed: null, ...i,
     };
   }
@@ -879,6 +887,7 @@ textarea.input { min-height: 72px; resize: vertical; }
         <div><dt>Color</dt><dd>${dots(i.colors)} ${(i.colors || []).join(', ')}</dd></div>
         <div><dt>Season</dt><dd>${(i.seasons || []).length === 4 ? 'All year' : (i.seasons || []).map(s => SEASON_ABBR[s]).join(' / ') || '—'} · ${WARMTH.find(x => x.v === i.warmth)?.label || ''}</dd></div>
         ${i.brand ? `<div><dt>Brand</dt><dd>${esc(i.brand)}</dd></div>` : ''}
+        ${i.model ? `<div><dt>Model</dt><dd>${esc(i.model)}</dd></div>` : ''}
         <div><dt>Price</dt><dd>${money(i.price)}</dd></div>
         <div><dt>Cost per wear</dt><dd>${cpw == null ? '—' : money(cpw)}</dd></div>
         <div><dt>Worn</dt><dd>${i.wornCount || 0}× · last ${daysAgo(i.lastWorn).toLowerCase()}</dd></div>
@@ -911,6 +920,8 @@ textarea.input { min-height: 72px; resize: vertical; }
         <label class="photo-pick" for="f-photo" id="photoPick"></label>
         <input type="file" id="f-photo" accept="image/*" hidden>
         <div style="margin-top:8px" id="rmWrap" ${photo ? '' : 'hidden'}><button type="button" class="linkbtn" id="rmPhoto">Remove photo</button></div>
+        <input type="file" id="f-label" accept="image/*" hidden>
+        <div class="ai" id="aiBox" hidden></div>
         <div class="field"><label for="f-name">Name</label>
           <input class="input" id="f-name" name="name" value="${esc(i.name)}" placeholder="e.g. Navy wool sweater" required maxlength="80"></div>
         <div class="field"><span class="lbl">Category</span>
@@ -921,6 +932,7 @@ textarea.input { min-height: 72px; resize: vertical; }
           <div class="field"><label for="f-price">Price paid</label><input class="input" id="f-price" name="price" inputmode="decimal" value="${i.price ?? ''}" placeholder="0.00"></div>
           <div class="field"><label for="f-brand">Brand</label><input class="input" id="f-brand" name="brand" value="${esc(i.brand)}" maxlength="60" placeholder="Optional"></div>
         </div>
+        <div class="field"><label for="f-model">Model</label><input class="input" id="f-model" name="model" value="${esc(i.model || '')}" maxlength="80" placeholder="e.g. Air Force 1 '07 (optional)"></div>
         <div class="field"><span class="lbl">Seasons</span>
           <div class="chips wrapping">${SEASONS.map(s => `<input class="chip-input" type="checkbox" name="seasons" id="f-sea-${s}" value="${s}" ${i.seasons.includes(s) ? 'checked' : ''}><label class="chip" for="f-sea-${s}">${s}</label>`).join('')}</div></div>
         <div class="field"><span class="lbl">How warm is it?</span>
@@ -940,7 +952,9 @@ textarea.input { min-height: 72px; resize: vertical; }
         $('#photoPick', sheet).innerHTML = (photo ? `<img src="${photo}" alt="">` : silhouette({ category: fd.get('category'), colors: cols.length ? cols : ['grey'] })) +
           `<span class="hint">${photo ? 'Change photo' : 'Take or choose photo'}</span>`;
         $('#rmWrap', sheet).hidden = !photo;
+        ai.draw();
       };
+      const ai = recognizer(sheet, form, () => photo, fill => { washTouched = washTouched || fill; });
       refreshPreview();
       form.addEventListener('change', e => {
         if (e.target.name === 'colors' && form.querySelectorAll('input[name="colors"]:checked').length > 2) { e.target.checked = false; toast('Pick up to 2 colors'); }
@@ -955,12 +969,12 @@ textarea.input { min-height: 72px; resize: vertical; }
       fileIn.addEventListener('change', async () => {
         const f = fileIn.files && fileIn.files[0]; if (!f) return;
         $('#saveItem', sheet).disabled = true;
-        try { photo = await compress(f); refreshPreview(); }
+        try { photo = await compress(f); ai.reset(); refreshPreview(); }
         catch (e) { toast("That photo couldn't be read. Try a JPG or PNG."); }
         $('#saveItem', sheet).disabled = false;
         fileIn.value = '';
       });
-      $('#rmPhoto', sheet).addEventListener('click', () => { photo = null; refreshPreview(); });
+      $('#rmPhoto', sheet).addEventListener('click', () => { photo = null; ai.reset(); refreshPreview(); });
       form.addEventListener('submit', async e => {
         e.preventDefault();
         const fd = new FormData(form);
@@ -971,7 +985,7 @@ textarea.input { min-height: 72px; resize: vertical; }
           ...(existing || { id: uid(), created: Date.now() }), ...normalizeItem(existing || {}),
           id: existing?.id || uid(), created: existing?.created || Date.now(),
           name, category: fd.get('category') || 'top', colors: fd.getAll('colors'), seasons: fd.getAll('seasons'),
-          brand: String(fd.get('brand') || '').trim(), notes: String(fd.get('notes') || '').trim(), photo,
+          brand: String(fd.get('brand') || '').trim(), model: String(fd.get('model') || '').trim(), notes: String(fd.get('notes') || '').trim(), photo,
           price: parsePrice(fd.get('price')), warmth: Number(fd.get('warmth')) || 1, washEvery, delicate: fd.get('delicate') === 'on',
         };
         if (!washEvery) { rec.status = 'clean'; rec.wearsSinceWash = 0; }
@@ -984,6 +998,132 @@ textarea.input { min-height: 72px; resize: vertical; }
         toast(existing ? 'Saved' : fromWishId ? 'Moved from wishlist to closet' : 'Added to closet');
       });
     });
+  }
+
+  // ---------- Recognition (Claude looks at the photo and fills the form) ----------
+  let samplePromise = null;
+  function getSample() {
+    if (!samplePromise) {
+      samplePromise = (window.claude?.use ? window.claude.use('sample') : Promise.resolve(null))
+        .then(async s => { if (!s) return null; const l = await s.limits().catch(() => null); return l?.images ? s : null; })
+        .catch(() => null);
+    }
+    return samplePromise;
+  }
+  getSample();
+
+  function dataUrlToBlob(url) {
+    const [head, b64] = url.split(',');
+    const bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+    return new Blob([bytes], { type: head.match(/data:([^;]+)/)?.[1] || 'image/jpeg' });
+  }
+
+  const RECOGNIZE_PROMPT = labelToo => `You are identifying one clothing item for a personal wardrobe app. Image 1 is the item${labelToo ? '; image 2 is its label or tag' : ''}.
+Reply with only a JSON object in this shape:
+{"name": "short name a person would use, include brand and model when known, e.g. \\"Nike Air Force 1 '07\\" or \\"Navy wool crewneck\\"",
+ "category": "one of top, bottom, dress, outer, shoes, bag, acc",
+ "colors": ["1 or 2 of: ${Object.keys(COLORS).join(', ')}"],
+ "seasons": ["any of: Spring, Summer, Fall, Winter"],
+ "warmth": 1 for light, 2 for medium, 3 for warm,
+ "brand": "brand name or null",
+ "model": "exact product or model name or null",
+ "confidence": "high, medium or low: how sure you are of the brand and model",
+ "evidence": "under 12 words: what you identified it from, e.g. logo on tongue, label text, signature stitching",
+ "washEvery": wears before washing (1, 2, 3, 5 or 10), or 0 if it is not machine washed (shoes, bags, coats)}
+Rules: only give a brand or model when something visible supports it (a logo, label text, or an unmistakable signature design). Never invent style numbers. If you cannot tell, use null and confidence "low". Colors and category must come from the lists.`;
+
+  function recognizer(sheet, form, getPhoto, markWash) {
+    const box = $('#aiBox', sheet);
+    const labelIn = $('#f-label', sheet);
+    let st = 'idle', result = null, err = '', labelBlob = null, labelUrl = null, ctl = null, sample = null;
+    getSample().then(s => { sample = s; draw(); });
+
+    function draw() {
+      const photo = getPhoto();
+      box.hidden = !sample || !photo;
+      if (box.hidden) return;
+      const labelRow = `<div class="row">${labelUrl ? `<img class="label-thumb" src="${labelUrl}" alt="Label photo">` : ''}
+        <button type="button" class="linkbtn" data-ai="label">${labelUrl ? 'Change label photo' : 'Add a photo of the label for a better match'}</button></div>`;
+      if (st === 'thinking') {
+        box.innerHTML = `<span class="thinking">Looking at your photo…</span><div class="row"><button type="button" class="btn small" data-ai="stop">Stop</button></div>`;
+      } else if (st === 'done' && result) {
+        const r = result, known = r.brand || r.model;
+        const q = [r.brand, r.model].filter(Boolean).join(' ') || r.name;
+        box.innerHTML = `
+          <div class="row between"><span class="sub">${known ? 'Looks like' : 'Couldn\'t pin down the exact model'}</span><span class="pill ${r.confidence === 'high' ? 'good' : r.confidence === 'medium' ? '' : 'warn'}">${esc(r.confidence)} confidence</span></div>
+          <div class="who">${esc(known ? [r.brand, r.model].filter(Boolean).join(' · ') : r.name)}</div>
+          ${r.evidence ? `<span class="sub">From: ${esc(r.evidence)}</span>` : ''}
+          <span class="sub">I filled in the fields below. Check them before saving.</span>
+          <span class="sub"><a href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q + ' product photo')}" target="_blank" rel="noopener">Find the official product photo</a>, save it, then tap your photo above to swap it in.</span>
+          ${labelRow}
+          <div class="row"><button type="button" class="btn small" data-ai="run">Try again</button></div>`;
+      } else {
+        box.innerHTML = `
+          <span class="sub">${st === 'error' ? esc(err) : 'Let Claude recognize the brand, model, colors and type from your photo.'}</span>
+          ${labelRow}
+          <div class="row"><button type="button" class="btn primary small" data-ai="run">Recognize it</button></div>`;
+      }
+    }
+
+    function apply(r) {
+      const set = (id, v) => { const el = $(id, sheet); if (el && v != null && v !== '') el.value = v; };
+      if (r.name) set('#f-name', String(r.name).slice(0, 80));
+      if (r.brand) set('#f-brand', String(r.brand).slice(0, 60));
+      if (r.model) set('#f-model', String(r.model).slice(0, 80));
+      // Category first: its change handler resets warmth/wash defaults, which the answer then overrides
+      if (CAT[r.category]) { const c = $(`#f-cat-${r.category}`, sheet); if (c) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } }
+      const cols = (Array.isArray(r.colors) ? r.colors : []).map(String).filter(c => COLORS[c]).slice(0, 2);
+      if (cols.length) {
+        form.querySelectorAll('input[name="colors"]').forEach(el => { el.checked = cols.includes(el.value); });
+        $(`#f-col-${cols[0]}`, sheet).dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const seas = (Array.isArray(r.seasons) ? r.seasons : []).filter(s => SEASONS.includes(s));
+      if (seas.length) form.querySelectorAll('input[name="seasons"]').forEach(el => { el.checked = seas.includes(el.value); });
+      const w = Number(r.warmth); if ([1, 2, 3].includes(w)) { const el = $(`#f-warm-${w}`, sheet); if (el) el.checked = true; }
+      const we = Number(r.washEvery); if (WASH_OPTS.some(([v]) => v === we)) { set('#f-wash', String(we)); markWash(true); }
+    }
+
+    async function run() {
+      const photo = getPhoto(); if (!photo || !sample) return;
+      ctl?.abort(); ctl = new AbortController();
+      st = 'thinking'; draw();
+      try {
+        const images = [dataUrlToBlob(photo)]; if (labelBlob) images.push(labelBlob);
+        const r = await sample.json(RECOGNIZE_PROMPT(!!labelBlob), { images, signal: ctl.signal });
+        if (!r || typeof r !== 'object') throw { code: 'invalid_json' };
+        r.confidence = ['high', 'medium', 'low'].includes(r.confidence) ? r.confidence : 'low';
+        result = r; st = 'done'; apply(r);
+      } catch (e) {
+        const msgs = {
+          cancelled: 'Stopped. Tap Recognize it to try again.',
+          not_granted: 'Claude access wasn\'t allowed, so you can fill in the details yourself.',
+          rate_limited: 'Too many requests right now. Try again in a minute.',
+          image_rejected: 'That photo couldn\'t be sent. Try a different one.',
+          invalid_json: 'The answer came back garbled. Try again.',
+          refused: 'Claude couldn\'t work with this photo. Try another angle.',
+        };
+        err = msgs[e?.code] || 'Something went wrong. Try again.';
+        st = 'error';
+        if (['not_granted', 'sampling_disabled', 'images_unavailable', 'not_declared', 'capability_disabled'].includes(e?.code)) sample = null;
+        if (e?.code === 'not_granted') toast(err);
+      }
+      draw();
+    }
+
+    box.addEventListener('click', e => {
+      const a = e.target.closest('[data-ai]')?.dataset.ai;
+      if (a === 'run') run();
+      else if (a === 'stop') ctl?.abort();
+      else if (a === 'label') labelIn.click();
+    });
+    labelIn.addEventListener('change', async () => {
+      const f = labelIn.files && labelIn.files[0]; if (!f) return;
+      try { labelUrl = await compress(f); labelBlob = dataUrlToBlob(labelUrl); if (st === 'done') st = 'idle'; draw(); }
+      catch (e) { toast("That photo couldn't be read."); }
+      labelIn.value = '';
+    });
+    return { draw, reset() { ctl?.abort(); st = 'idle'; result = null; labelBlob = null; labelUrl = null; } };
   }
 
   function compress(file) {
