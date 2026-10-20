@@ -12,6 +12,13 @@ It's a home-screen web app. It runs entirely on your phone, works offline, and y
 2. In **Safari**, open `https://<your-github-username>.github.io/new-dresser/`.
 3. Tap **Share → Add to Home Screen**. Then open **Dresser** from your home screen.
 
+### Doesn't load on iPhone?
+
+1. In Safari, open the address with `?v=2` at the end, for example `https://cleanthismessup.github.io/new-dresser/?v=2`. This skips any old cached copy.
+2. Still blank? Go to iPhone **Settings → Apps → Safari → Advanced → Website Data**, search for `github.io`, delete it, and try again.
+3. Turn off content blockers for the site (**aA** button → **Turn off Content Blockers**). Lockdown Mode can also block parts of the app.
+4. If something breaks, the app shows the error at the bottom of the screen. Take a screenshot of it, and note your iOS version (**Settings → General → About**).
+
 ## Turn on photo recognition (free)
 
 1. Go to [aistudio.google.com](https://aistudio.google.com), sign in, and tap **Get API key → Create API key**.

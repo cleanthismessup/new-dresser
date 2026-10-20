@@ -1,6 +1,6 @@
 // Offline support: the app shell is cached on install; app files are served
 // network-first (so updates arrive when online) and fall back to the cache offline.
-const VERSION = 'nd-v1';
+const VERSION = 'nd-v2';
 const SHELL = [
   './', 'index.html', 'styles.css', 'app.js', 'gemini.js', 'weather.js', 'backup.js', 'cutout.js',
   'manifest.webmanifest', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',

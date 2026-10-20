@@ -34,7 +34,7 @@
   </div>
 </header>
 
-<main id="view" class="wrap" aria-live="polite"></main>
+<main id="view" class="wrap" aria-live="polite"><p class="boot-msg">Loading New Dresser…</p></main>
 
 <button class="fab" id="fab" type="button">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -72,6 +72,26 @@
   <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
 </div>
 <div class="toast" id="toast" hidden></div>
+<script>
+  // Shows load problems on screen so a screenshot is enough to diagnose them
+  (function () {
+    function show(msg) {
+      var el = document.getElementById('bootError');
+      if (!el) { el = document.createElement('div'); el.id = 'bootError'; el.className = 'boot-error'; document.body.appendChild(el); el.textContent = navigator.userAgent; }
+      el.textContent = msg + '\n\n' + el.textContent;
+    }
+    window.addEventListener('error', function (e) {
+      if (e.target && e.target !== window) return;
+      show('Something went wrong: ' + (e.message || 'unknown error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : ''));
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      show('Something went wrong: ' + (e.reason && (e.reason.message || e.reason) || 'unknown error'));
+    });
+    setTimeout(function () {
+      if (!window.__ndStarted) show("The app didn't start. Pull down to reload. If this stays, send a screenshot of this message to Claude.");
+    }, 6000);
+  })();
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

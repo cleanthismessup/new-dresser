@@ -66,18 +66,27 @@ const STORES = ['items', 'outfits', 'wish', 'meta'];
 const Store = (() => {
   let db = null;
   const mem = Object.fromEntries(STORES.map(s => [s, new Map()]));
+  let stalled = false;
   function open() {
     return new Promise(resolve => {
+      let done = false;
+      const finish = ok => { if (!done) { done = true; resolve(ok); } };
+      // Some iOS Safari versions never answer the first open: don't wait forever
+      setTimeout(() => { if (!done) { stalled = true; finish(false); } }, 3000);
       try {
         const req = indexedDB.open('new-dresser', 2);
         req.onupgradeneeded = () => {
           const d = req.result;
           STORES.forEach(s => { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); });
         };
-        req.onsuccess = () => { db = req.result; resolve(true); };
-        req.onerror = () => resolve(false);
-        req.onblocked = () => resolve(false);
-      } catch (e) { resolve(false); }
+        req.onsuccess = () => {
+          // Answered too late: this session already runs from memory, so don't mix the two
+          if (done) { try { req.result.close(); } catch (e) {} return; }
+          db = req.result; finish(true);
+        };
+        req.onerror = () => finish(false);
+        req.onblocked = () => finish(false);
+      } catch (e) { finish(false); }
     });
   }
   function all(store) {
@@ -105,6 +114,7 @@ const Store = (() => {
   return {
     open, all,
     persistent: () => !!db,
+    stalled: () => stalled,
     put: (store, obj) => { mem[store].set(obj.id, obj); return write(store, s => s.put(obj)); },
     del: (store, id) => { mem[store].delete(id); return write(store, s => s.delete(id)); },
     clear: (store) => { mem[store].clear(); return write(store, s => s.clear()); },
@@ -395,7 +405,8 @@ function render() {
   $('#fab').hidden = !fabs[state.view];
   $('#fabLabel').textContent = fabs[state.view] || '';
   const v = $('#view');
-  v.innerHTML = ({ today: todayView, closet: closetView, outfits: outfitsView, laundry: laundryView, wish: wishView })[state.view]();
+  const warn = Store.stalled() ? `<div class="banner"><span>This phone's storage didn't respond, so nothing you change is saved right now. Close the app completely and open it again.</span></div>` : '';
+  v.innerHTML = warn + ({ today: todayView, closet: closetView, outfits: outfitsView, laundry: laundryView, wish: wishView })[state.view]();
 }
 
 function examplesBanner() {
@@ -1608,6 +1619,8 @@ async function loadExamples() {
 }
 
 async function boot() {
+  window.__ndStarted = true;
+  render();
   await Store.open();
   state.items = (await Store.all('items')).map(normalizeItem);
   state.outfits = (await Store.all('outfits')).map(normalizeOutfit);
