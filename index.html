@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: fitting-room app — sticky header, 2-col closet grid, bottom tab bar, bottom sheets for detail/forms. Item tags styled like garment care labels. */
+/* Layout: fitting-room app — sticky header, five-tab bottom bar (Today, Closet, Outfits, Laundry, Wishlist), bottom sheets for detail/forms. Item details styled like garment care labels. */
 :root {
   --bg: #f3f2f5;
   --surface: #ffffff;
@@ -15,26 +15,34 @@
   --accent: #8a2f45;
   --accent-soft: #f1dfe4;
   --on-accent: #ffffff;
-  --danger: #b3261e;
+  --good: #23784a;
+  --good-soft: #dcefe3;
+  --warn: #9a6200;
+  --warn-soft: #f6ead2;
+  --bad: #b3261e;
+  --bad-soft: #f7dedb;
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-body: "Figtree", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --radius: 14px;
-  --nav-h: 64px;
+  --nav-h: 62px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #15131a; --surface: #1f1c26; --surface-2: #2a2632; --fg: #eeecf2; --muted: #a39eae;
-    --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25; --danger: #f2867e;
+    --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25;
+    --good: #6fcf97; --good-soft: #1d3527; --warn: #e8b45a; --warn-soft: #3a2e17; --bad: #f2867e; --bad-soft: #3d1f1d;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #15131a; --surface: #1f1c26; --surface-2: #2a2632; --fg: #eeecf2; --muted: #a39eae;
-  --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25; --danger: #f2867e;
+  --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25;
+  --good: #6fcf97; --good-soft: #1d3527; --warn: #e8b45a; --warn-soft: #3a2e17; --bad: #f2867e; --bad-soft: #3d1f1d;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -44,45 +52,66 @@ button { cursor: pointer; }
 
 /* Header */
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); }
-.top-in { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-block: 14px 10px; }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; }
-.top-meta { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.top-in { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px 8px; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.45rem; letter-spacing: -0.02em; }
+.icon-btn { background: var(--surface); border: 1px solid var(--line); width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; padding: 0; }
+.icon-btn svg { width: 20px; height: 20px; }
 
 main { padding-block: 4px calc(var(--nav-h) + 96px + env(safe-area-inset-bottom, 0px)); }
-h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; margin: 18px 0 10px; text-wrap: balance; }
+h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; margin: 14px 0 4px; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 0.88rem; margin: 0; }
+.section-lbl { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
 
 /* Controls */
 .search { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
 .search::placeholder { color: var(--muted); }
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-block: 10px 4px; scrollbar-width: none; margin: 0 -2px; padding-inline: 2px; }
+.chips.wrapping { flex-wrap: wrap; overflow: visible; }
 .chips::-webkit-scrollbar { display: none; }
 .chip { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 13px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
 .chip[aria-pressed="true"], .chip-input:checked + .chip { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .chip-input { position: absolute; opacity: 0; pointer-events: none; }
-.chip-input:focus-visible + .chip { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chip-input:focus-visible + .chip, .chip-input:focus-visible + .sw { outline: 2px solid var(--accent); outline-offset: 2px; }
 .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .row.between { justify-content: space-between; }
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; padding-block: 8px; }
-.sw { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); position: relative; flex: none; padding: 0; }
+.sw { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); flex: none; padding: 0; }
 .sw[aria-pressed="true"], .chip-input:checked + .sw { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); }
 .sort { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 6px 10px; font-size: 0.85rem; }
 .count { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
 
+/* Pills */
+.pill { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.accent { background: var(--accent-soft); color: var(--accent); }
+
 /* Banner */
 .banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); border-radius: 12px; padding: 10px 14px; margin-top: 12px; font-size: 0.88rem; }
+.banner.note { background: var(--surface-2); }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Stat strip */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.stat { background: var(--surface); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.stat b { display: block; font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat span { font-size: 0.75rem; color: var(--muted); }
 
 /* Closet grid */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
 .card { background: var(--surface); border: 0; border-radius: var(--radius); padding: 0; text-align: left; overflow: hidden; display: flex; flex-direction: column; position: relative; }
 .card .pic { aspect-ratio: 4 / 5; width: 100%; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
 .card .pic img { width: 100%; height: 100%; object-fit: cover; }
+.card.dirty .pic > * { opacity: 0.45; }
 .sil { width: 64%; height: 64%; }
 .card .body { padding: 9px 11px 11px; display: grid; gap: 3px; min-width: 0; }
 .card .name { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tag { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.badge { position: absolute; top: 8px; left: 8px; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--surface); color: var(--muted); padding: 2px 6px; border-radius: 6px; }
-.fav { position: absolute; top: 6px; right: 8px; color: var(--accent); font-size: 1rem; }
+.badges { position: absolute; top: 8px; left: 8px; right: 30px; display: flex; gap: 4px; flex-wrap: wrap; }
+.badge { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--surface); color: var(--muted); padding: 2px 6px; border-radius: 6px; }
+.badge.hamper { background: var(--warn-soft); color: var(--warn); }
+.fav { position: absolute; top: 6px; right: 9px; color: var(--accent); font-size: 1rem; }
 .card.sel { box-shadow: 0 0 0 2.5px var(--accent); }
 .card .check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; }
 .card.sel .check { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
@@ -91,17 +120,56 @@ h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1
 .olist { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; }
 .ocard { background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 0; padding: 0; text-align: left; display: flex; flex-direction: column; position: relative; }
 .collage { aspect-ratio: 1 / 1; display: grid; gap: 2px; background: var(--line); width: 100%; }
-.collage > div { background: var(--surface-2); display: grid; place-items: center; overflow: hidden; min-height: 0; }
+.collage > div { background: var(--surface-2); display: grid; place-items: center; overflow: hidden; min-height: 0; position: relative; }
 .collage img { width: 100%; height: 100%; object-fit: cover; }
 .collage .sil { width: 70%; height: 70%; }
-.collage.n1 { grid-template-columns: 1fr; }
+.collage > div.dirty > :not(.mark) { opacity: 0.4; }
+.collage .mark { position: absolute; bottom: 6px; left: 6px; }
+.collage.n1, .collage.n0 { grid-template-columns: 1fr; }
 .collage.n2 { grid-template-columns: 1fr 1fr; }
 .collage.n3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .collage.n3 > div:first-child { grid-row: span 2; }
 .collage.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.collage.n0 { grid-template-columns: 1fr; }
-.ocard .body { padding: 10px 12px 12px; display: grid; gap: 4px; }
+.ocard .body { padding: 10px 12px 12px; display: grid; gap: 6px; }
 .ocard .name { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; }
+.taglist { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* Today */
+.weather { background: var(--surface); border-radius: var(--radius); padding: 14px; margin-top: 12px; display: grid; gap: 4px; }
+.weather .temp { font-family: var(--font-display); font-weight: 700; font-size: 2.4rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.weather .cond { color: var(--muted); }
+.pick { background: var(--surface); border-radius: var(--radius); overflow: hidden; display: grid; grid-template-columns: 1fr; margin-top: 8px; }
+@media (min-width: 640px) { .pick { grid-template-columns: 300px 1fr; } }
+.pick .body { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.pick .name { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; text-wrap: balance; }
+.reasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 0.9rem; }
+.reasons li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; }
+.reasons .ok { color: var(--good); font-weight: 700; }
+.reasons .no { color: var(--warn); font-weight: 700; }
+.alt-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.blocked { background: var(--surface); border-radius: 12px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.88rem; border: 0; width: 100%; text-align: left; }
+.blocked + .blocked { margin-top: 8px; }
+.blocked span:first-child { min-width: 0; }
+
+/* Laundry */
+.load { background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 10px; }
+.load + .load { margin-top: 10px; }
+.load.next { box-shadow: inset 0 0 0 2px var(--accent); }
+.load h4 { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; margin: 0; }
+
+/* Wishlist */
+.wlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-top: 12px; }
+.wcard { background: var(--surface); border: 0; border-radius: var(--radius); padding: 10px; display: grid; grid-template-columns: 76px 1fr; gap: 12px; text-align: left; align-items: center; }
+.wcard .pic { aspect-ratio: 1; border-radius: 10px; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
+.wcard .pic img { width: 100%; height: 100%; object-fit: cover; }
+.wcard .body { min-width: 0; display: grid; gap: 4px; }
+.wcard .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.price { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.spark { display: block; width: 100%; height: 34px; }
+.spark-lg { height: 90px; }
+.hist { background: var(--surface); border-radius: var(--radius); padding: 4px 14px; font-family: var(--font-mono); font-size: 0.8rem; }
+.hist > div { display: flex; justify-content: space-between; padding-block: 8px; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+.hist > div:last-child { border-bottom: 0; }
 
 /* Empty */
 .empty { text-align: center; padding: 48px 16px; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
@@ -110,18 +178,20 @@ h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1
 /* Buttons */
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 16px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.btn.danger { color: var(--danger); }
-.btn.armed { background: var(--danger); color: var(--surface); border-color: var(--danger); }
+.btn.small { padding: 7px 12px; font-size: 0.85rem; border-radius: 10px; }
+.btn.danger { color: var(--bad); }
+.btn.armed { background: var(--bad); color: var(--surface); border-color: var(--bad); }
 .btn.block { width: 100%; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Bottom nav */
 .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
-.tabs-in { display: grid; grid-template-columns: repeat(3, 1fr); height: var(--nav-h); }
-.tab { background: none; border: 0; display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--muted); font-size: 0.72rem; font-weight: 600; }
-.tab svg { width: 24px; height: 24px; }
+.tabs-in { display: grid; grid-template-columns: repeat(5, 1fr); height: var(--nav-h); }
+.tab { background: none; border: 0; display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--muted); font-size: 0.68rem; font-weight: 600; padding: 0; position: relative; }
+.tab svg { width: 23px; height: 23px; }
 .tab[aria-current="page"] { color: var(--accent); }
-.fab { position: fixed; z-index: 7; right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)); bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px)); height: 54px; padding: 0 20px 0 16px; border-radius: 27px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
+.tab .dotn { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 16px; height: 16px; border-radius: 8px; background: var(--warn); color: var(--surface); font-size: 0.6rem; display: grid; place-items: center; padding: 0 4px; }
+.fab { position: fixed; z-index: 7; right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)); bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px)); height: 52px; padding: 0 20px 0 16px; border-radius: 26px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
 .fab svg { width: 22px; height: 22px; }
 
 /* Sheet */
@@ -136,60 +206,64 @@ h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1
 .x { background: var(--surface-2); border: 0; width: 34px; height: 34px; border-radius: 50%; font-size: 1.1rem; flex: none; }
 .field { display: grid; gap: 6px; margin-top: 16px; }
 .field > label, .field > .lbl { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.two .field { min-width: 0; }
 .input { width: 100%; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
 textarea.input { min-height: 72px; resize: vertical; }
+.checkline { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 0.92rem; }
+.checkline input { width: 20px; height: 20px; accent-color: var(--accent); }
 .photo-pick { display: grid; place-items: center; aspect-ratio: 4 / 3; border: 1.5px dashed var(--line); border-radius: var(--radius); background: var(--surface); color: var(--muted); text-align: center; overflow: hidden; position: relative; }
 .photo-pick img { width: 100%; height: 100%; object-fit: cover; }
 .photo-pick .sil { width: 40%; height: 60%; }
 .photo-pick .hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
-.actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 .actions .btn { flex: 1 1 140px; }
 
 /* Detail */
-.hero-pic { aspect-ratio: 4 / 5; max-height: 52vh; width: 100%; border-radius: var(--radius); background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
+.hero-pic { aspect-ratio: 4 / 5; max-height: 48vh; width: 100%; border-radius: var(--radius); background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
 .hero-pic img { width: 100%; height: 100%; object-fit: cover; }
 .hero-pic .sil { width: 50%; height: 50%; }
-.label-card { background: var(--surface); border-radius: var(--radius); padding: 4px 14px; margin-top: 14px; font-family: var(--font-mono); font-size: 0.8rem; }
+.label-card { background: var(--surface); border-radius: var(--radius); padding: 4px 14px; margin: 14px 0 0; font-family: var(--font-mono); font-size: 0.8rem; }
 .label-card > div { display: flex; justify-content: space-between; gap: 16px; padding-block: 9px; border-bottom: 1px dashed var(--line); }
 .label-card > div:last-child { border-bottom: 0; }
 .label-card dt { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; padding-top: 2px; }
-.label-card dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.label-card dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .dots { display: inline-flex; gap: 4px; vertical-align: middle; }
 .dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line); display: inline-block; }
 .notes { margin-top: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
 .mini-row { display: flex; gap: 10px; overflow-x: auto; padding-block: 4px 8px; }
-.mini { flex: none; width: 84px; background: var(--surface); border: 0; border-radius: 10px; padding: 0; overflow: hidden; text-align: left; }
+.mini { flex: none; width: 84px; background: var(--surface); border: 0; border-radius: 10px; padding: 0; overflow: hidden; text-align: left; position: relative; }
 .mini .pic { aspect-ratio: 1; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
 .mini .pic img { width: 100%; height: 100%; object-fit: cover; }
 .mini .sil { width: 66%; height: 66%; }
-.mini span { display: block; font-size: 0.72rem; padding: 5px 7px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.section-lbl { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; }
+.mini.dirty .pic > * { opacity: 0.4; }
+.mini > span { display: block; font-size: 0.72rem; padding: 5px 7px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meter { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.meter > div { height: 100%; background: var(--accent); }
 .picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 8px; }
 .picker-grid .card .pic { aspect-ratio: 1; }
 .picker-grid .card .body { padding: 6px 8px 8px; }
 .picker-grid .card .name { font-size: 0.78rem; }
 
-/* More */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-.stat { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
-.stat b { display: block; font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.stat span { font-size: 0.8rem; color: var(--muted); }
+/* Settings */
 .bars { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 9px; }
-.bar { display: grid; grid-template-columns: 96px 1fr 28px; align-items: center; gap: 10px; font-size: 0.85rem; }
+.bar { display: grid; grid-template-columns: 96px 1fr 64px; align-items: center; gap: 10px; font-size: 0.85rem; }
 .bar .track { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
 .bar .fill { height: 100%; background: var(--accent); border-radius: 4px; }
-.bar .n { font-family: var(--font-mono); font-size: 0.78rem; text-align: right; font-variant-numeric: tabular-nums; }
+.bar .n { font-family: var(--font-mono); font-size: 0.75rem; text-align: right; font-variant-numeric: tabular-nums; }
 .panel { background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 12px; }
 .panel p { margin: 0; color: var(--muted); font-size: 0.88rem; }
 
 /* Toast */
-.toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 0.88rem; font-weight: 500; z-index: 30; max-width: calc(100% - 32px); text-align: center; }
+.toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 0.88rem; font-weight: 500; z-index: 30; width: max-content; max-width: calc(100% - 32px); text-align: center; }
 </style>
 
 <header class="top">
   <div class="wrap top-in">
     <div class="brand">New Dresser</div>
-    <div class="top-meta" id="topMeta"></div>
+    <button class="icon-btn" type="button" data-action="settings" aria-label="Wardrobe stats and settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    </button>
   </div>
 </header>
 
@@ -202,6 +276,10 @@ textarea.input { min-height: 72px; resize: vertical; }
 
 <nav class="tabs" aria-label="Sections">
   <div class="wrap tabs-in">
+    <button class="tab" type="button" data-tab="today">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>
+      Today
+    </button>
     <button class="tab" type="button" data-tab="closet">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5a2 2 0 1 1 2.6 1.9c-.4.1-.6.5-.6.9V10l8.4 6.1c.8.6.4 1.9-.6 1.9H4.2c-1 0-1.4-1.3-.6-1.9L12 10"/></svg>
       Closet
@@ -210,9 +288,14 @@ textarea.input { min-height: 72px; resize: vertical; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
       Outfits
     </button>
-    <button class="tab" type="button" data-tab="more">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 19V11M12 19V5M19 19v-6"/></svg>
-      Overview
+    <button class="tab" type="button" data-tab="laundry">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><circle cx="12" cy="13.5" r="4.5"/><path d="M7.5 6h1M11 6h1"/></svg>
+      Laundry
+      <span class="dotn" id="hamperCount" hidden></span>
+    </button>
+    <button class="tab" type="button" data-tab="wish">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 12V4.5c0-.8.7-1.5 1.5-1.5H12l9 9-9 9-9-9Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+      Wishlist
     </button>
   </div>
 </nav>
@@ -241,11 +324,30 @@ textarea.input { min-height: 72px; resize: vertical; }
   const COLORS = {
     black: '#1d1d1f', white: '#f7f7f4', grey: '#9a9ca0', navy: '#25304f', blue: '#4a78c2',
     green: '#3f8a5a', olive: '#6f7342', beige: '#d8c6a5', brown: '#7a5232', red: '#c0392b',
-    pink: '#e8a0b4', purple: '#7d5ba6', yellow: '#e8c547', orange: '#e07b39',
+    pink: '#e8a0b4', purple: '#7d5ba6', yellow: '#e8c547', orange: '#e07b39', silver: '#c4c7cc',
   };
   const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter'];
   const SEASON_ABBR = { Spring: 'SP', Summer: 'SU', Fall: 'FA', Winter: 'WI' };
-  const OCCASIONS = ['Casual', 'Work', 'Going out', 'Sport', 'Formal'];
+  const OCCASIONS = ['Casual', 'School', 'Party', 'Work', 'Sport', 'Formal'];
+  const WARMTH = [{ v: 1, label: 'Light' }, { v: 2, label: 'Medium' }, { v: 3, label: 'Warm' }];
+  const WASH_OPTS = [[1, 'After every wear'], [2, 'Every 2 wears'], [3, 'Every 3 wears'], [5, 'Every 5 wears'], [10, 'Every 10 wears'], [0, "Doesn't go in the wash"]];
+  const WASH_DEFAULT = { top: 1, bottom: 4, dress: 2, outer: 10, shoes: 0, bag: 0, acc: 0 };
+  const WARMTH_DEFAULT = { top: 1, bottom: 1, dress: 1, outer: 3, shoes: 1, bag: 1, acc: 1 };
+  const LOADS = {
+    whites: { label: 'Whites & lights', hint: 'Warm wash' },
+    darks: { label: 'Darks', hint: 'Cold wash, inside out' },
+    colors: { label: 'Colors', hint: 'Cold wash' },
+    delicates: { label: 'Delicates', hint: 'Hand wash or gentle cycle' },
+  };
+  // Demo weather: the artifact preview can't reach a weather service.
+  const WEATHER = [
+    { id: 'freezing', temp: 2, cond: 'Clear and cold', rain: false },
+    { id: 'cool', temp: 11, cond: 'Cloudy', rain: false },
+    { id: 'rain', temp: 12, cond: 'Rain all day', rain: true },
+    { id: 'mild', temp: 19, cond: 'Sunny', rain: false },
+    { id: 'hot', temp: 29, cond: 'Hot and humid', rain: false },
+  ];
+  const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD'];
 
   // Garment silhouettes, viewBox 0 0 100 100
   const SIL = {
@@ -259,16 +361,17 @@ textarea.input { min-height: 72px; resize: vertical; }
   };
 
   // ---------- Storage (IndexedDB, memory fallback) ----------
+  const STORES = ['items', 'outfits', 'wish', 'meta'];
   const Store = (() => {
     let db = null;
-    const mem = { items: new Map(), outfits: new Map(), meta: new Map() };
+    const mem = Object.fromEntries(STORES.map(s => [s, new Map()]));
     function open() {
       return new Promise(resolve => {
         try {
-          const req = indexedDB.open('new-dresser', 1);
+          const req = indexedDB.open('new-dresser', 2);
           req.onupgradeneeded = () => {
             const d = req.result;
-            ['items', 'outfits', 'meta'].forEach(s => { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); });
+            STORES.forEach(s => { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); });
           };
           req.onsuccess = () => { db = req.result; resolve(true); };
           req.onerror = () => resolve(false);
@@ -308,42 +411,82 @@ textarea.input { min-height: 72px; resize: vertical; }
   })();
 
   // ---------- State ----------
+  const VIEWS = ['today', 'closet', 'outfits', 'laundry', 'wish'];
   const state = {
-    view: 'closet',
-    items: [],
-    outfits: [],
-    closet: { q: '', cat: 'all', color: null, sort: 'new' },
+    view: 'today',
+    items: [], outfits: [], wish: [],
+    settings: { id: 'settings', currency: 'USD', unit: 'C' },
+    closet: { q: '', cat: 'all', color: null, sort: 'new', cleanOnly: false },
+    today: { weather: 'cool', occasion: 'School' },
   };
-  try { const v = localStorage.getItem('nd-view'); if (['closet', 'outfits', 'more'].includes(v)) state.view = v; } catch (e) {}
+  try {
+    const v = localStorage.getItem('nd-view'); if (VIEWS.includes(v)) state.view = v;
+    const t = JSON.parse(localStorage.getItem('nd-today') || 'null'); if (t) Object.assign(state.today, t);
+  } catch (e) {}
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const isoDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const today = () => isoDate(new Date());
   const itemById = id => state.items.find(i => i.id === id);
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-  function daysAgo(iso) {
-    if (!iso) return 'Never';
+  function daysSince(iso) {
+    if (!iso) return null;
     const [y, m, d] = iso.split('-').map(Number);
-    const then = new Date(y, m - 1, d); const now = new Date(); now.setHours(0, 0, 0, 0);
-    const n = Math.round((now - then) / 86400000);
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    return Math.round((now - new Date(y, m - 1, d)) / 86400000);
+  }
+  function daysAgo(iso) {
+    const n = daysSince(iso);
+    if (n == null) return 'Never';
     if (n <= 0) return 'Today';
     if (n === 1) return 'Yesterday';
     if (n < 30) return `${n} days ago`;
-    return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: now.getFullYear() === y ? undefined : 'numeric' });
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
+  function money(v) {
+    if (v == null || v === '' || isNaN(v)) return '—';
+    try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: state.settings.currency, maximumFractionDigits: v % 1 ? 2 : 0 }).format(v); }
+    catch (e) { return '$' + Number(v).toFixed(2); }
+  }
+  const temp = c => state.settings.unit === 'F' ? `${Math.round(c * 9 / 5 + 32)}°F` : `${c}°C`;
+  const parsePrice = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) || n < 0 ? null : Math.round(n * 100) / 100; };
 
   let toastTimer;
   function toast(msg) {
     const t = $('#toast'); t.textContent = msg; t.hidden = false;
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
   }
-
   async function save(store, obj) {
     const ok = await Store.put(store, obj);
     if (!ok) toast("Couldn't save to this device. Storage may be full.");
     return ok;
   }
+
+  // Fill fields added after v1 so older saved items keep working
+  function normalizeItem(i) {
+    return {
+      colors: [], seasons: [], brand: '', notes: '', photo: null, fav: false, wornCount: 0, lastWorn: null,
+      price: null, warmth: WARMTH_DEFAULT[i.category] || 1, washEvery: WASH_DEFAULT[i.category] ?? 1,
+      wearsSinceWash: 0, status: 'clean', delicate: false, lastWashed: null, ...i,
+    };
+  }
+  function normalizeOutfit(o) {
+    const occ = o.occasions || (o.occasion ? [o.occasion] : []);
+    return { wornDates: [], ...o, occasions: occ };
+  }
+  function loadFor(i) {
+    if (i.delicate) return 'delicates';
+    const c = i.colors?.[0];
+    if (['white', 'beige', 'silver', 'yellow'].includes(c)) return 'whites';
+    if (['black', 'navy', 'brown', 'olive', 'grey', 'purple'].includes(c)) return 'darks';
+    return 'colors';
+  }
+  const washable = i => i.washEvery > 0;
+  const isDirty = i => i.status === 'dirty';
 
   // ---------- Visuals ----------
   let silN = 0;
@@ -356,63 +499,193 @@ textarea.input { min-height: 72px; resize: vertical; }
       defs = `<defs><pattern id="${pid}" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="12" height="12" fill="${c1}"/><rect width="12" height="5" fill="${c2}"/></pattern></defs>`;
       fill = `url(#${pid})`;
     }
-    return `<svg class="sil" viewBox="0 0 100 100" aria-hidden="true">${defs}<g fill="${fill}" stroke="${c1 === COLORS.white || c1 === COLORS.beige ? 'rgba(0,0,0,.28)' : 'rgba(0,0,0,.12)'}" stroke-width="1.5" stroke-linejoin="round">${(SIL[item.category] || SIL.top).replace('fill="none" stroke-width="5"', `fill="none" stroke="${c1}" stroke-width="5"`)}</g></svg>`;
+    const light = [COLORS.white, COLORS.beige, COLORS.silver].includes(c1);
+    return `<svg class="sil" viewBox="0 0 100 100" aria-hidden="true">${defs}<g fill="${fill}" stroke="${light ? 'rgba(0,0,0,.28)' : 'rgba(0,0,0,.12)'}" stroke-width="1.5" stroke-linejoin="round">${(SIL[item.category] || SIL.top).replace('fill="none" stroke-width="5"', `fill="none" stroke="${c1}" stroke-width="5"`)}</g></svg>`;
   }
   const pic = item => item.photo ? `<img src="${item.photo}" alt="${esc(item.name)}" loading="lazy">` : silhouette(item);
   const dots = colors => `<span class="dots">${(colors || []).map(c => `<span class="dot" style="background:${COLORS[c]}" title="${c}"></span>`).join('')}</span>`;
   function itemTag(item) {
     const parts = [CAT[item.category]?.one || ''];
-    const s = item.seasons || [];
-    parts.push(s.length === 4 ? 'All year' : s.map(x => SEASON_ABBR[x]).join('/') || '—');
+    if (item.price != null) parts.push(money(item.price));
     parts.push(`${item.wornCount || 0}× worn`);
     return parts.join(' · ');
   }
-  function collage(ids) {
+  function collage(ids, showDirty = true) {
     const its = ids.map(itemById).filter(Boolean).slice(0, 4);
     if (!its.length) return `<div class="collage n0"><div><span class="count">No items</span></div></div>`;
-    return `<div class="collage n${its.length}">${its.map(i => `<div>${pic(i)}</div>`).join('')}</div>`;
+    return `<div class="collage n${its.length}">${its.map(i => `<div class="${showDirty && isDirty(i) ? 'dirty' : ''}">${pic(i)}${showDirty && isDirty(i) ? '<span class="pill warn mark">Hamper</span>' : ''}</div>`).join('')}</div>`;
+  }
+  function spark(prices, target, cls = 'spark') {
+    const w = 200, h = cls === 'spark' ? 34 : 90, pad = 5;
+    const vals = prices.map(p => p.price);
+    const dom = target != null ? [...vals, target] : vals;
+    const min = Math.min(...dom), max = Math.max(...dom), span = max - min || 1;
+    const y = v => pad + (max - v) / span * (h - pad * 2);
+    const x = i => vals.length < 2 ? w / 2 : pad + i / (vals.length - 1) * (w - pad * 2);
+    const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+    const line = vals.length < 2 ? `${pad},${y(vals[0])} ${w - pad},${y(vals[0])}` : pts.join(' ');
+    const area = vals.length < 2 ? '' : `<polygon points="${pad},${h} ${pts.join(' ')} ${w - pad},${h}" fill="var(--accent-soft)"/>`;
+    const tgt = target != null ? `<line x1="0" x2="${w}" y1="${y(target)}" y2="${y(target)}" stroke="var(--good)" stroke-width="1.2" stroke-dasharray="4 4"/>` : '';
+    const last = vals.length < 2 ? [w - pad, y(vals[0])] : [x(vals.length - 1), y(vals[vals.length - 1])];
+    return `<svg class="${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">${area}${tgt}<polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="var(--accent)"/></svg>`;
+  }
+
+  // ---------- Recommendation (rule-based scoring) ----------
+  function weatherNow() { return WEATHER.find(w => w.id === state.today.weather) || WEATHER[1]; }
+  function weatherTarget(w) {
+    const t = w.temp;
+    return {
+      seasons: t < 8 ? ['Winter'] : t < 16 ? ['Fall', 'Spring', 'Winter'] : t < 24 ? ['Spring', 'Fall', 'Summer'] : ['Summer'],
+      warmth: t < 8 ? 3 : t < 16 ? 2.3 : t < 24 ? 1.5 : 1,
+      needsLayer: t < 14 || w.rain,
+    };
+  }
+  function scoreOutfit(o, w, occasion) {
+    const its = o.itemIds.map(itemById).filter(Boolean);
+    if (!its.length) return null;
+    const tgt = weatherTarget(w);
+    const reasons = [], cautions = [];
+    let score = 0, maxScore = 60;
+    const dirty = its.filter(isDirty);
+
+    if (occasion) {
+      maxScore += 40;
+      if (o.occasions.includes(occasion)) { score += 40; reasons.push(`Tagged for ${occasion.toLowerCase()}`); }
+      else cautions.push(`Not tagged for ${occasion.toLowerCase()}`);
+    }
+    const clothing = its.filter(i => ['top', 'bottom', 'dress', 'outer'].includes(i.category));
+    const warmth = clothing.length ? Math.max(...clothing.map(i => i.warmth)) : 1;
+    const diff = Math.abs(warmth - tgt.warmth);
+    score += Math.max(0, 30 - diff * 15);
+    if (diff < 0.8) reasons.push(`Right warmth for ${temp(w.temp)}`);
+    else cautions.push(warmth > tgt.warmth ? `Probably too warm for ${temp(w.temp)}` : `Probably too cold for ${temp(w.temp)}`);
+    if (tgt.needsLayer && !its.some(i => i.category === 'outer')) { score -= 10; cautions.push(w.rain ? 'No jacket for the rain' : 'No jacket or coat'); }
+
+    const seasonal = its.filter(i => (i.seasons || []).some(s => tgt.seasons.includes(s))).length / its.length;
+    score += seasonal * 10;
+
+    const ds = daysSince((o.wornDates || []).slice(-1)[0]);
+    score += Math.min(ds == null ? 21 : ds, 21) / 21 * 20;
+    if (ds == null) reasons.push('You haven\'t worn it yet');
+    else if (ds >= 7) reasons.push(`Last worn ${ds} days ago`);
+    else cautions.push(ds === 0 ? 'You wore it today' : `Worn ${ds === 1 ? 'yesterday' : ds + ' days ago'}`);
+
+    if (!dirty.length) reasons.unshift('Every piece is clean');
+    return { o, its, dirty, reasons, cautions, pct: Math.max(0, Math.min(100, Math.round(score / maxScore * 100))) };
+  }
+  function recommendations() {
+    const w = weatherNow();
+    const scored = state.outfits.map(o => scoreOutfit(o, w, state.today.occasion)).filter(Boolean);
+    const ready = scored.filter(s => !s.dirty.length).sort((a, b) => b.pct - a.pct);
+    const blocked = scored.filter(s => s.dirty.length).sort((a, b) => b.pct - a.pct);
+    return { w, ready, blocked };
   }
 
   // ---------- Views ----------
   function render() {
     silN = 0;
     document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-current', t.dataset.tab === state.view ? 'page' : 'false'));
-    $('#topMeta').textContent = `${state.items.length} items · ${state.outfits.length} outfits`;
-    $('#fab').hidden = state.view === 'more';
-    $('#fabLabel').textContent = state.view === 'outfits' ? 'New outfit' : 'Add item';
+    const hamper = state.items.filter(isDirty).length;
+    const hc = $('#hamperCount'); hc.hidden = !hamper; hc.textContent = hamper;
+    const fabs = { closet: 'Add item', outfits: 'New outfit', wish: 'Add to wishlist' };
+    $('#fab').hidden = !fabs[state.view];
+    $('#fabLabel').textContent = fabs[state.view] || '';
     const v = $('#view');
-    if (state.view === 'closet') v.innerHTML = closetView();
-    else if (state.view === 'outfits') v.innerHTML = outfitsView();
-    else v.innerHTML = moreView();
+    v.innerHTML = ({ today: todayView, closet: closetView, outfits: outfitsView, laundry: laundryView, wish: wishView })[state.view]();
+  }
+
+  function examplesBanner() {
+    const has = state.items.some(i => i.sample) || state.outfits.some(o => o.sample) || state.wish.some(w => w.sample);
+    return has ? `<div class="banner"><span>Pieces marked Example are here so you can try things out.</span><button class="linkbtn" data-action="remove-samples">Remove examples</button></div>` : '';
+  }
+
+  function todayView() {
+    const { w, ready, blocked } = recommendations();
+    const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+    const top = ready[0];
+    const alts = ready.slice(1, 4);
+    const pickHtml = top ? `
+      <div class="pick">
+        ${collage(top.o.itemIds)}
+        <div class="body">
+          <div class="row between"><span class="pill accent">Top pick · ${top.pct}% match</span>${top.o.sample ? '<span class="pill">Example</span>' : ''}</div>
+          <div class="name">${esc(top.o.name)}</div>
+          <ul class="reasons">
+            ${top.reasons.map(r => `<li><span class="ok">✓</span><span>${esc(r)}</span></li>`).join('')}
+            ${top.cautions.map(r => `<li><span class="no">!</span><span>${esc(r)}</span></li>`).join('')}
+          </ul>
+          <div class="actions" style="margin-top:4px">
+            <button class="btn primary" data-action="wear-outfit" data-id="${top.o.id}">Wear this today</button>
+            <button class="btn" data-action="open-outfit" data-id="${top.o.id}">See pieces</button>
+          </div>
+        </div>
+      </div>` : state.outfits.length ? `<div class="empty"><strong>Nothing clean to suggest</strong><span>Every saved outfit has a piece in the hamper.</span><button class="btn" data-tab="laundry">Open laundry</button></div>`
+      : `<div class="empty"><strong>No outfits saved yet</strong><span>Save a few outfits and this page will pick one for you each day.</span><button class="btn primary" data-action="new-outfit">New outfit</button></div>`;
+    return `
+      <h2 class="view-title">${dateStr}</h2>
+      <div class="weather">
+        <div class="row between"><span class="temp">${temp(w.temp)}</span><span class="pill">Demo weather</span></div>
+        <span class="cond">${w.cond}</span>
+        <div class="chips" role="group" aria-label="Demo weather">
+          ${WEATHER.map(x => `<button class="chip" data-action="weather" data-v="${x.id}" aria-pressed="${x.id === w.id}">${temp(x.temp)} ${x.rain ? 'rain' : x.cond.split(' ')[0].toLowerCase()}</button>`).join('')}
+        </div>
+      </div>
+      <div class="section-lbl">Where are you going?</div>
+      <div class="chips" role="group" aria-label="Occasion" style="padding-top:0">
+        ${['', ...OCCASIONS].map(x => `<button class="chip" data-action="occasion" data-v="${x}" aria-pressed="${state.today.occasion === x}">${x || 'Anywhere'}</button>`).join('')}
+      </div>
+      <div class="section-lbl">What to wear</div>
+      ${pickHtml}
+      ${alts.length ? `<div class="section-lbl">Other good options</div><div class="alt-row">${alts.map(s => `
+        <button class="ocard" data-action="open-outfit" data-id="${s.o.id}">${collage(s.o.itemIds)}
+          <div class="body"><span class="name">${esc(s.o.name)}</span><span class="tag">${s.pct}% match</span></div></button>`).join('')}</div>` : ''}
+      ${blocked.length ? `<div class="section-lbl">Waiting on laundry</div>${blocked.slice(0, 4).map(s => `
+        <button class="blocked" data-tab="laundry"><span><b>${esc(s.o.name)}</b><br><span class="sub">${esc(s.dirty.map(i => i.name).join(', '))} in the hamper</span></span><span class="pill warn">${s.pct}%</span></button>`).join('')}` : ''}
+    `;
   }
 
   function filteredItems() {
-    const { q, cat, color, sort } = state.closet;
+    const { q, cat, color, sort, cleanOnly } = state.closet;
     const needle = q.trim().toLowerCase();
-    let list = state.items.filter(i =>
+    const list = state.items.filter(i =>
       (cat === 'all' || (cat === 'fav' ? i.fav : i.category === cat)) &&
       (!color || (i.colors || []).includes(color)) &&
+      (!cleanOnly || !isDirty(i)) &&
       (!needle || [i.name, i.brand, i.notes, CAT[i.category]?.one].join(' ').toLowerCase().includes(needle))
     );
+    const cpw = i => i.price == null ? Infinity : i.price / Math.max(1, i.wornCount || 0);
     const by = {
       new: (a, b) => b.created - a.created,
       most: (a, b) => (b.wornCount || 0) - (a.wornCount || 0),
       least: (a, b) => (a.wornCount || 0) - (b.wornCount || 0),
       stale: (a, b) => (a.lastWorn || '').localeCompare(b.lastWorn || ''),
+      price: (a, b) => (b.price || 0) - (a.price || 0),
+      cpw: (a, b) => cpw(b) - cpw(a),
     };
     return list.sort(by[sort] || by.new);
+  }
+  function wardrobeStats() {
+    const priced = state.items.filter(i => i.price != null);
+    const value = priced.reduce((s, i) => s + i.price, 0);
+    const wears = priced.reduce((s, i) => s + (i.wornCount || 0), 0);
+    return { value, cpw: wears ? value / wears : null, priced: priced.length };
   }
 
   function closetView() {
     const c = state.closet;
-    const hasSamples = state.items.some(i => i.sample);
     if (!state.items.length) {
-      return `<div class="empty"><strong>Your closet is empty</strong><span>Snap a photo of something you own to add your first piece.</span><button class="btn primary" data-action="add-item">Add item</button></div>`;
+      return `<div class="empty"><strong>Your closet is empty</strong><span>Take a photo of something you own to add your first piece.</span><button class="btn primary" data-action="add-item">Add item</button></div>`;
     }
+    const st = wardrobeStats();
     const usedColors = Object.keys(COLORS).filter(k => state.items.some(i => (i.colors || []).includes(k)));
     const list = filteredItems();
     return `
-      ${hasSamples ? `<div class="banner"><span>These are example pieces so you can try things out.</span><button class="linkbtn" data-action="remove-samples">Remove examples</button></div>` : ''}
+      ${examplesBanner()}
+      <div class="stats">
+        <div class="stat"><b>${money(st.value)}</b><span>closet value</span></div>
+        <div class="stat"><b>${state.items.length}</b><span>pieces</span></div>
+        <div class="stat"><b>${st.cpw == null ? '—' : money(st.cpw)}</b><span>avg per wear</span></div>
+      </div>
       <div style="margin-top:12px"><input class="search" id="q" type="search" placeholder="Search name, brand, notes" value="${esc(c.q)}" autocomplete="off"></div>
       <div class="chips" role="group" aria-label="Category">
         ${[{ id: 'all', label: 'All' }, { id: 'fav', label: '♥ Favorites' }, ...CATS].map(x => `<button class="chip" data-action="cat" data-v="${x.id}" aria-pressed="${c.cat === x.id}">${x.label}</button>`).join('')}
@@ -422,21 +695,22 @@ textarea.input { min-height: 72px; resize: vertical; }
           ${usedColors.map(k => `<button class="sw" data-action="color" data-v="${k}" style="background:${COLORS[k]}" aria-label="${k}" aria-pressed="${c.color === k}"></button>`).join('')}
         </div>
         <div class="row">
-          <span class="count">${list.length} shown</span>
+          <button class="chip" data-action="clean-only" aria-pressed="${c.cleanOnly}">Clean only</button>
           <select class="sort" id="sort" aria-label="Sort">
-            ${[['new', 'Newest'], ['most', 'Most worn'], ['least', 'Least worn'], ['stale', 'Not worn lately']].map(([v, l]) => `<option value="${v}" ${c.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+            ${[['new', 'Newest'], ['most', 'Most worn'], ['least', 'Least worn'], ['stale', 'Not worn lately'], ['price', 'Highest price'], ['cpw', 'Highest cost per wear']].map(([v, l]) => `<option value="${v}" ${c.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
           </select>
         </div>
       </div>
+      <div class="count" style="margin-top:4px">${list.length} shown</div>
       ${list.length ? `<div class="grid">${list.map(itemCard).join('')}</div>` :
         `<div class="empty"><strong>Nothing matches</strong><span>Try another category or color.</span><button class="btn" data-action="reset-filters">Clear filters</button></div>`}
     `;
   }
 
   function itemCard(i) {
-    return `<button class="card" data-action="open-item" data-id="${i.id}">
+    return `<button class="card ${isDirty(i) ? 'dirty' : ''}" data-action="open-item" data-id="${i.id}">
       <div class="pic">${pic(i)}</div>
-      ${i.sample ? '<span class="badge">Example</span>' : ''}
+      <span class="badges">${i.sample ? '<span class="badge">Example</span>' : ''}${isDirty(i) ? '<span class="badge hamper">In hamper</span>' : ''}</span>
       ${i.fav ? '<span class="fav" aria-label="Favorite">♥</span>' : ''}
       <div class="body"><span class="name">${esc(i.name)}</span><span class="tag">${itemTag(i)}</span></div>
     </button>`;
@@ -446,41 +720,93 @@ textarea.input { min-height: 72px; resize: vertical; }
     if (!state.outfits.length) {
       return `<div class="empty"><strong>No outfits yet</strong><span>Combine pieces from your closet into looks you can reuse.</span><button class="btn primary" data-action="new-outfit">New outfit</button></div>`;
     }
-    const list = [...state.outfits].sort((a, b) => b.created - a.created);
-    return `<h2 class="view-title">Outfits</h2><div class="olist">${list.map(o => {
-      const last = (o.wornDates || []).slice(-1)[0];
-      return `<button class="ocard" data-action="open-outfit" data-id="${o.id}">
-        ${collage(o.itemIds)}
-        ${o.sample ? '<span class="badge">Example</span>' : ''}
-        <div class="body"><span class="name">${esc(o.name)}</span>
-        <span class="tag">${[o.occasion, `${o.itemIds.length} pieces`, `${(o.wornDates || []).length}× worn`].filter(Boolean).join(' · ')}</span>
-        <span class="tag">Last worn: ${daysAgo(last)}</span></div>
-      </button>`;
-    }).join('')}</div>`;
+    const f = state.outfitFilter || '';
+    const list = state.outfits.filter(o => !f || o.occasions.includes(f)).sort((a, b) => b.created - a.created);
+    return `
+      ${examplesBanner()}
+      <div class="chips" role="group" aria-label="Type of outing">
+        ${['', ...OCCASIONS].map(x => `<button class="chip" data-action="outfit-filter" data-v="${x}" aria-pressed="${f === x}">${x || 'All outings'}</button>`).join('')}
+      </div>
+      ${list.length ? `<div class="olist">${list.map(o => {
+        const dirty = o.itemIds.map(itemById).filter(i => i && isDirty(i)).length;
+        const cost = o.itemIds.map(itemById).reduce((s, i) => s + (i?.price || 0), 0);
+        return `<button class="ocard" data-action="open-outfit" data-id="${o.id}">
+          ${collage(o.itemIds)}
+          ${o.sample ? '<span class="badges"><span class="badge">Example</span></span>' : ''}
+          <div class="body"><span class="name">${esc(o.name)}</span>
+          <span class="taglist">${o.occasions.map(x => `<span class="pill">${esc(x)}</span>`).join('')}${dirty ? `<span class="pill warn">${dirty} in hamper</span>` : '<span class="pill good">Ready</span>'}</span>
+          <span class="tag">${plural(o.itemIds.length, 'piece')} · ${money(cost)} · last worn ${daysAgo((o.wornDates || []).slice(-1)[0]).toLowerCase()}</span></div>
+        </button>`;
+      }).join('')}</div>` : `<div class="empty"><strong>No ${esc(f.toLowerCase())} outfits</strong><span>Tag an outfit with ${esc(f)} when you create or edit it.</span></div>`}
+    `;
   }
 
-  function moreView() {
-    const items = state.items;
-    const never = items.filter(i => !i.wornCount).length;
-    const most = [...items].sort((a, b) => (b.wornCount || 0) - (a.wornCount || 0))[0];
-    const counts = CATS.map(c => ({ ...c, n: items.filter(i => i.category === c.id).length })).filter(c => c.n);
-    const max = Math.max(1, ...counts.map(c => c.n));
-    const hasSamples = items.some(i => i.sample) || state.outfits.some(o => o.sample);
+  function laundryPlan() {
+    const dirty = state.items.filter(isDirty);
+    const groups = {};
+    dirty.forEach(i => { (groups[loadFor(i)] ||= []).push(i); });
+    // How many saved outfits each load would make wearable again
+    const loads = Object.entries(groups).map(([k, its]) => {
+      const ids = new Set(its.map(i => i.id));
+      const unblocks = state.outfits.filter(o => {
+        const d = o.itemIds.map(itemById).filter(i => i && isDirty(i));
+        return d.length && d.every(i => ids.has(i.id));
+      }).length;
+      const touches = state.outfits.filter(o => o.itemIds.some(id => ids.has(id))).length;
+      return { key: k, its, unblocks, touches };
+    }).sort((a, b) => b.unblocks - a.unblocks || b.touches - a.touches || b.its.length - a.its.length);
+    const soon = state.items.filter(i => !isDirty(i) && washable(i) && i.washEvery > 1 && i.wearsSinceWash >= i.washEvery - 1);
+    return { dirty, loads, soon };
+  }
+
+  function laundryView() {
+    const { dirty, loads, soon } = laundryPlan();
+    const mini = i => `<button class="mini dirty" data-action="open-item" data-id="${i.id}"><div class="pic">${pic(i)}</div><span>${esc(i.name)}</span></button>`;
     return `
-      <h2 class="view-title">Overview</h2>
+      <h2 class="view-title">Laundry</h2>
+      <p class="sub">${dirty.length ? `${plural(dirty.length, 'piece')} in the hamper, sorted into ${plural(loads.length, 'load')}.` : 'The hamper is empty. Everything is clean.'}</p>
+      ${loads.map((l, n) => `
+        <div class="section-lbl">${n === 0 ? 'Do this load next' : 'Then'}</div>
+        <div class="load ${n === 0 ? 'next' : ''}">
+          <div class="row between"><h4>${LOADS[l.key].label}</h4><span class="pill">${plural(l.its.length, 'piece')}</span></div>
+          <span class="sub">${LOADS[l.key].hint}${l.unblocks ? ` · makes ${plural(l.unblocks, 'outfit')} wearable again` : l.touches ? ` · used in ${plural(l.touches, 'outfit')}` : ''}</span>
+          <div class="mini-row">${l.its.map(mini).join('')}</div>
+          <button class="btn ${n === 0 ? 'primary' : ''}" data-action="wash-load" data-v="${l.key}">Washed this load</button>
+        </div>`).join('')}
+      ${soon.length ? `<div class="section-lbl">Needs a wash after the next wear</div><div class="mini-row">${soon.map(i => `<button class="mini" data-action="open-item" data-id="${i.id}"><div class="pic">${pic(i)}</div><span>${esc(i.name)}</span></button>`).join('')}</div>` : ''}
+      <div class="banner note" style="margin-top:22px"><span>Pieces go in the hamper on their own after the number of wears you set for each one. You can also put something in by hand from its page.</span></div>
+    `;
+  }
+
+  function wishView() {
+    if (!state.wish.length) {
+      return `<div class="empty"><strong>Your wishlist is empty</strong><span>Save clothes you want to buy and track their price over time.</span><button class="btn primary" data-action="add-wish">Add to wishlist</button></div>`;
+    }
+    const total = state.wish.reduce((s, w) => s + (w.prices.slice(-1)[0]?.price || 0), 0);
+    const atTarget = state.wish.filter(w => w.target != null && w.prices.slice(-1)[0]?.price <= w.target).length;
+    return `
+      ${examplesBanner()}
       <div class="stats">
-        <div class="stat"><b>${items.length}</b><span>pieces</span></div>
-        <div class="stat"><b>${state.outfits.length}</b><span>outfits</span></div>
-        <div class="stat"><b>${never}</b><span>never worn</span></div>
+        <div class="stat"><b>${state.wish.length}</b><span>pieces wanted</span></div>
+        <div class="stat"><b>${money(total)}</b><span>to buy them all</span></div>
+        <div class="stat"><b>${atTarget}</b><span>at your price</span></div>
       </div>
-      ${most && most.wornCount ? `<div class="section-lbl">Most worn</div><div class="mini-row"><button class="mini" data-action="open-item" data-id="${most.id}"><div class="pic">${pic(most)}</div><span>${esc(most.name)} · ${most.wornCount}×</span></button></div>` : ''}
-      ${counts.length ? `<div class="section-lbl">By category</div><div class="bars">${counts.map(c => `<div class="bar"><span>${c.label}</span><div class="track"><div class="fill" style="width:${(c.n / max) * 100}%"></div></div><span class="n">${c.n}</span></div>`).join('')}</div>` : ''}
-      <div class="section-lbl">Your data</div>
-      <div class="panel">
-        <p>${Store.persistent() ? 'Everything is saved on this phone only. Clearing your browser data for this page erases your closet.' : 'This browser blocked storage, so changes last only until you close the page.'}</p>
-        ${hasSamples ? '<button class="btn" data-action="remove-samples">Remove example pieces and outfits</button>' : ''}
-        <button class="btn danger" data-action="wipe" data-confirm="Tap again to erase everything">Erase everything</button>
-      </div>
+      <div class="wlist">${state.wish.map(w => {
+        const first = w.prices[0]?.price, cur = w.prices.slice(-1)[0]?.price;
+        const ch = first ? (cur - first) / first : 0;
+        const hit = w.target != null && cur <= w.target;
+        return `<button class="wcard" data-action="open-wish" data-id="${w.id}">
+          <div class="pic">${pic(w)}</div>
+          <div class="body">
+            <span class="name">${esc(w.name)}</span>
+            <span class="tag">${esc(w.store || CAT[w.category]?.one || '')}</span>
+            <div class="row between"><span class="price">${money(cur)}</span>
+              <span class="taglist">${hit ? '<span class="pill good">At your price</span>' : ''}${Math.abs(ch) >= 0.005 ? `<span class="pill ${ch < 0 ? 'good' : 'bad'}">${ch < 0 ? '↓' : '↑'} ${Math.round(Math.abs(ch) * 100)}%</span>` : ''}</span></div>
+            ${spark(w.prices, w.target)}
+          </div>
+        </button>`;
+      }).join('')}</div>
+      <div class="banner note" style="margin-top:16px"><span>For now you update prices by hand. Automatic price checks need the app to run on a server, which comes later.</span></div>
     `;
   }
 
@@ -489,6 +815,7 @@ textarea.input { min-height: 72px; resize: vertical; }
   function openSheet(html, onMount) {
     silN = 1000;
     const root = $('#sheetRoot'), sheet = $('#sheet');
+    if (typeof sheetCleanup === 'function') sheetCleanup();
     sheet.innerHTML = `<div class="grab"></div>${html}`;
     root.hidden = false;
     document.body.style.overflow = 'hidden';
@@ -507,52 +834,65 @@ textarea.input { min-height: 72px; resize: vertical; }
   function openItem(id) {
     const i = itemById(id); if (!i) return;
     const inOutfits = state.outfits.filter(o => o.itemIds.includes(id));
+    const cpw = i.price != null ? i.price / Math.max(1, i.wornCount || 0) : null;
+    const laundry = !washable(i) ? "Doesn't go in the wash" : isDirty(i) ? `In the hamper · ${LOADS[loadFor(i)].label.toLowerCase()} load` : `Clean · ${i.wearsSinceWash} of ${i.washEvery} wears before a wash`;
     openSheet(`
       ${head(esc(i.name))}
       <div class="hero-pic">${pic(i)}</div>
       <dl class="label-card">
         <div><dt>Category</dt><dd>${CAT[i.category]?.one || ''}</dd></div>
         <div><dt>Color</dt><dd>${dots(i.colors)} ${(i.colors || []).join(', ')}</dd></div>
-        <div><dt>Season</dt><dd>${(i.seasons || []).length === 4 ? 'All year' : (i.seasons || []).join(', ') || '—'}</dd></div>
+        <div><dt>Season</dt><dd>${(i.seasons || []).length === 4 ? 'All year' : (i.seasons || []).map(s => SEASON_ABBR[s]).join(' / ') || '—'} · ${WARMTH.find(x => x.v === i.warmth)?.label || ''}</dd></div>
         ${i.brand ? `<div><dt>Brand</dt><dd>${esc(i.brand)}</dd></div>` : ''}
-        <div><dt>Worn</dt><dd>${i.wornCount || 0} times</dd></div>
-        <div><dt>Last worn</dt><dd>${daysAgo(i.lastWorn)}</dd></div>
+        <div><dt>Price</dt><dd>${money(i.price)}</dd></div>
+        <div><dt>Cost per wear</dt><dd>${cpw == null ? '—' : money(cpw)}</dd></div>
+        <div><dt>Worn</dt><dd>${i.wornCount || 0}× · last ${daysAgo(i.lastWorn).toLowerCase()}</dd></div>
+        <div><dt>Laundry</dt><dd>${laundry}</dd></div>
       </dl>
+      ${washable(i) && !isDirty(i) ? `<div class="meter" aria-hidden="true"><div style="width:${Math.min(100, i.wearsSinceWash / i.washEvery * 100)}%"></div></div>` : ''}
       ${i.notes ? `<div class="notes">${esc(i.notes)}</div>` : ''}
-      ${inOutfits.length ? `<div class="section-lbl">In ${inOutfits.length} outfit${inOutfits.length > 1 ? 's' : ''}</div>
-        <div class="mini-row">${inOutfits.map(o => `<button class="mini" data-action="open-outfit" data-id="${o.id}"><div class="pic">${collage(o.itemIds)}</div><span>${esc(o.name)}</span></button>`).join('')}</div>` : ''}
+      ${inOutfits.length ? `<div class="section-lbl">In ${plural(inOutfits.length, 'outfit')}</div>
+        <div class="mini-row">${inOutfits.map(o => `<button class="mini" data-action="open-outfit" data-id="${o.id}"><div class="pic">${collage(o.itemIds, false)}</div><span>${esc(o.name)}</span></button>`).join('')}</div>` : ''}
       <div class="actions">
         <button class="btn primary" data-action="wear-item" data-id="${i.id}">Wore it today</button>
-        <button class="btn" data-action="fav" data-id="${i.id}">${i.fav ? '♥ Favorited' : '♡ Favorite'}</button>
+        ${washable(i) ? `<button class="btn" data-action="toggle-dirty" data-id="${i.id}">${isDirty(i) ? 'Mark clean' : 'Put in hamper'}</button>` : ''}
       </div>
       <div class="actions" style="margin-top:10px">
+        <button class="btn" data-action="fav" data-id="${i.id}">${i.fav ? '♥ Favorited' : '♡ Favorite'}</button>
         <button class="btn" data-action="edit-item" data-id="${i.id}">Edit</button>
         <button class="btn danger" data-action="delete-item" data-id="${i.id}" data-confirm="Tap again to delete">Delete</button>
       </div>
     `);
   }
 
-  function itemForm(existing) {
-    const i = existing || { name: '', category: state.closet.cat !== 'all' && state.closet.cat !== 'fav' ? state.closet.cat : 'top', colors: [], seasons: [], brand: '', notes: '', photo: null };
+  function itemForm({ existing, prefill, fromWishId } = {}) {
+    const baseCat = state.closet.cat !== 'all' && state.closet.cat !== 'fav' ? state.closet.cat : 'top';
+    const i = normalizeItem(existing || { name: '', category: baseCat, ...(prefill || {}) });
     let photo = i.photo;
+    let washTouched = !!existing;
     openSheet(`
-      ${head(existing ? 'Edit item' : 'Add item')}
+      ${head(existing ? 'Edit item' : fromWishId ? 'Add your new piece' : 'Add item')}
       <form id="itemForm" novalidate>
-        <label class="photo-pick" for="f-photo" id="photoPick">
-          ${photo ? `<img src="${photo}" alt="">` : silhouette({ category: i.category, colors: i.colors.length ? i.colors : ['grey'] })}
-          <span class="hint">${photo ? 'Change photo' : 'Take or choose photo'}</span>
-        </label>
+        <label class="photo-pick" for="f-photo" id="photoPick"></label>
         <input type="file" id="f-photo" accept="image/*" hidden>
-        ${photo ? '<div style="margin-top:8px"><button type="button" class="linkbtn" id="rmPhoto">Remove photo</button></div>' : ''}
+        <div style="margin-top:8px" id="rmWrap" ${photo ? '' : 'hidden'}><button type="button" class="linkbtn" id="rmPhoto">Remove photo</button></div>
         <div class="field"><label for="f-name">Name</label>
           <input class="input" id="f-name" name="name" value="${esc(i.name)}" placeholder="e.g. Navy wool sweater" required maxlength="80"></div>
         <div class="field"><span class="lbl">Category</span>
-          <div class="chips" style="flex-wrap:wrap">${CATS.map(c => `<input class="chip-input" type="radio" name="category" id="f-cat-${c.id}" value="${c.id}" ${i.category === c.id ? 'checked' : ''}><label class="chip" for="f-cat-${c.id}">${c.one}</label>`).join('')}</div></div>
+          <div class="chips wrapping">${CATS.map(c => `<input class="chip-input" type="radio" name="category" id="f-cat-${c.id}" value="${c.id}" ${i.category === c.id ? 'checked' : ''}><label class="chip" for="f-cat-${c.id}">${c.one}</label>`).join('')}</div></div>
         <div class="field"><span class="lbl">Colors (up to 2)</span>
-          <div class="swatches">${Object.entries(COLORS).map(([k, hex]) => `<input class="chip-input" type="checkbox" name="colors" id="f-col-${k}" value="${k}" ${i.colors.includes(k) ? 'checked' : ''}><label class="sw" for="f-col-${k}" style="background:${hex}" title="${k}"><span class="sr" hidden>${k}</span></label>`).join('')}</div></div>
+          <div class="swatches">${Object.entries(COLORS).map(([k, hex]) => `<input class="chip-input" type="checkbox" name="colors" id="f-col-${k}" value="${k}" ${i.colors.includes(k) ? 'checked' : ''}><label class="sw" for="f-col-${k}" style="background:${hex}" title="${k}" aria-label="${k}"></label>`).join('')}</div></div>
+        <div class="two">
+          <div class="field"><label for="f-price">Price paid</label><input class="input" id="f-price" name="price" inputmode="decimal" value="${i.price ?? ''}" placeholder="0.00"></div>
+          <div class="field"><label for="f-brand">Brand</label><input class="input" id="f-brand" name="brand" value="${esc(i.brand)}" maxlength="60" placeholder="Optional"></div>
+        </div>
         <div class="field"><span class="lbl">Seasons</span>
-          <div class="chips" style="flex-wrap:wrap">${SEASONS.map(s => `<input class="chip-input" type="checkbox" name="seasons" id="f-sea-${s}" value="${s}" ${i.seasons.includes(s) ? 'checked' : ''}><label class="chip" for="f-sea-${s}">${s}</label>`).join('')}</div></div>
-        <div class="field"><label for="f-brand">Brand</label><input class="input" id="f-brand" name="brand" value="${esc(i.brand)}" maxlength="60" placeholder="Optional"></div>
+          <div class="chips wrapping">${SEASONS.map(s => `<input class="chip-input" type="checkbox" name="seasons" id="f-sea-${s}" value="${s}" ${i.seasons.includes(s) ? 'checked' : ''}><label class="chip" for="f-sea-${s}">${s}</label>`).join('')}</div></div>
+        <div class="field"><span class="lbl">How warm is it?</span>
+          <div class="chips wrapping">${WARMTH.map(x => `<input class="chip-input" type="radio" name="warmth" id="f-warm-${x.v}" value="${x.v}" ${i.warmth === x.v ? 'checked' : ''}><label class="chip" for="f-warm-${x.v}">${x.label}</label>`).join('')}</div></div>
+        <div class="field"><label for="f-wash">Wash it</label>
+          <select class="input" id="f-wash" name="washEvery">${WASH_OPTS.map(([v, l]) => `<option value="${v}" ${i.washEvery === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <label class="checkline"><input type="checkbox" name="delicate" id="f-delicate" ${i.delicate ? 'checked' : ''}> Delicate (hand wash or gentle cycle)</label>
         <div class="field"><label for="f-notes">Notes</label><textarea class="input" id="f-notes" name="notes" maxlength="500" placeholder="Size, fit, where you bought it…">${esc(i.notes)}</textarea></div>
         <div class="actions"><button class="btn primary block" type="submit" id="saveItem">${existing ? 'Save changes' : 'Add to closet'}</button></div>
       </form>
@@ -561,17 +901,21 @@ textarea.input { min-height: 72px; resize: vertical; }
       const fileIn = $('#f-photo', sheet);
       const refreshPreview = () => {
         const fd = new FormData(form);
-        const box = $('#photoPick', sheet);
         const cols = fd.getAll('colors');
-        box.innerHTML = (photo ? `<img src="${photo}" alt="">` : silhouette({ category: fd.get('category'), colors: cols.length ? cols : ['grey'] })) +
+        $('#photoPick', sheet).innerHTML = (photo ? `<img src="${photo}" alt="">` : silhouette({ category: fd.get('category'), colors: cols.length ? cols : ['grey'] })) +
           `<span class="hint">${photo ? 'Change photo' : 'Take or choose photo'}</span>`;
+        $('#rmWrap', sheet).hidden = !photo;
       };
+      refreshPreview();
       form.addEventListener('change', e => {
-        if (e.target.name === 'colors') {
-          const checked = form.querySelectorAll('input[name="colors"]:checked');
-          if (checked.length > 2) { e.target.checked = false; toast('Pick up to 2 colors'); }
+        if (e.target.name === 'colors' && form.querySelectorAll('input[name="colors"]:checked').length > 2) { e.target.checked = false; toast('Pick up to 2 colors'); }
+        if (e.target.name === 'washEvery') washTouched = true;
+        if (e.target.name === 'category') {
+          const cat = e.target.value;
+          if (!washTouched) $('#f-wash', sheet).value = String(WASH_DEFAULT[cat] ?? 1);
+          if (!existing) { const r = $(`#f-warm-${WARMTH_DEFAULT[cat] || 1}`, sheet); if (r) r.checked = true; }
         }
-        if (!photo && (e.target.name === 'colors' || e.target.name === 'category')) refreshPreview();
+        if (e.target.name === 'colors' || e.target.name === 'category') refreshPreview();
       });
       fileIn.addEventListener('change', async () => {
         const f = fileIn.files && fileIn.files[0]; if (!f) return;
@@ -581,23 +925,28 @@ textarea.input { min-height: 72px; resize: vertical; }
         $('#saveItem', sheet).disabled = false;
         fileIn.value = '';
       });
-      const rm = $('#rmPhoto', sheet);
-      if (rm) rm.addEventListener('click', () => { photo = null; rm.remove(); refreshPreview(); });
+      $('#rmPhoto', sheet).addEventListener('click', () => { photo = null; refreshPreview(); });
       form.addEventListener('submit', async e => {
         e.preventDefault();
         const fd = new FormData(form);
         const name = String(fd.get('name') || '').trim();
         if (!name) { toast('Give it a name first'); $('#f-name', sheet).focus(); return; }
+        const washEvery = Number(fd.get('washEvery'));
         const rec = {
-          ...(existing || { id: uid(), created: Date.now(), wornCount: 0, lastWorn: null, fav: false }),
+          ...(existing || { id: uid(), created: Date.now() }), ...normalizeItem(existing || {}),
+          id: existing?.id || uid(), created: existing?.created || Date.now(),
           name, category: fd.get('category') || 'top', colors: fd.getAll('colors'), seasons: fd.getAll('seasons'),
           brand: String(fd.get('brand') || '').trim(), notes: String(fd.get('notes') || '').trim(), photo,
+          price: parsePrice(fd.get('price')), warmth: Number(fd.get('warmth')) || 1, washEvery, delicate: fd.get('delicate') === 'on',
         };
-        if (existing) { const idx = state.items.findIndex(x => x.id === rec.id); state.items[idx] = rec; }
+        if (!washEvery) { rec.status = 'clean'; rec.wearsSinceWash = 0; }
+        delete rec.sample;
+        if (existing) { rec.sample = existing.sample; state.items[state.items.findIndex(x => x.id === rec.id)] = rec; }
         else state.items.push(rec);
         await save('items', rec);
+        if (fromWishId) { state.wish = state.wish.filter(w => w.id !== fromWishId); await Store.del('wish', fromWishId); state.view = 'closet'; persistView(); }
         closeSheet(); render();
-        toast(existing ? 'Saved' : 'Added to closet');
+        toast(existing ? 'Saved' : fromWishId ? 'Moved from wishlist to closet' : 'Added to closet');
       });
     });
   }
@@ -623,16 +972,19 @@ textarea.input { min-height: 72px; resize: vertical; }
     const o = state.outfits.find(x => x.id === id); if (!o) return;
     const its = o.itemIds.map(itemById).filter(Boolean);
     const worn = o.wornDates || [];
+    const dirty = its.filter(isDirty);
+    const cost = its.reduce((s, i) => s + (i.price || 0), 0);
     openSheet(`
       ${head(esc(o.name))}
       <div style="border-radius:var(--radius);overflow:hidden">${collage(o.itemIds)}</div>
+      ${dirty.length ? `<div class="banner" style="background:var(--warn-soft)"><span>${esc(dirty.map(i => i.name).join(', '))} ${dirty.length === 1 ? 'is' : 'are'} in the hamper.</span></div>` : ''}
       <dl class="label-card">
-        ${o.occasion ? `<div><dt>Occasion</dt><dd>${esc(o.occasion)}</dd></div>` : ''}
-        <div><dt>Worn</dt><dd>${worn.length} times</dd></div>
-        <div><dt>Last worn</dt><dd>${daysAgo(worn.slice(-1)[0])}</dd></div>
+        <div><dt>Outings</dt><dd>${o.occasions.length ? esc(o.occasions.join(', ')) : '—'}</dd></div>
+        <div><dt>Total cost</dt><dd>${money(cost)}</dd></div>
+        <div><dt>Worn</dt><dd>${worn.length}× · last ${daysAgo(worn.slice(-1)[0]).toLowerCase()}</dd></div>
       </dl>
-      <div class="section-lbl">${its.length} piece${its.length === 1 ? '' : 's'}</div>
-      <div class="mini-row">${its.map(i => `<button class="mini" data-action="open-item" data-id="${i.id}"><div class="pic">${pic(i)}</div><span>${esc(i.name)}</span></button>`).join('')}</div>
+      <div class="section-lbl">${plural(its.length, 'piece')}</div>
+      <div class="mini-row">${its.map(i => `<button class="mini ${isDirty(i) ? 'dirty' : ''}" data-action="open-item" data-id="${i.id}"><div class="pic">${pic(i)}</div><span>${esc(i.name)}</span></button>`).join('')}</div>
       <div class="actions"><button class="btn primary block" data-action="wear-outfit" data-id="${o.id}">Wore this today</button></div>
       <div class="actions" style="margin-top:10px">
         <button class="btn" data-action="edit-outfit" data-id="${o.id}">Edit</button>
@@ -644,14 +996,15 @@ textarea.input { min-height: 72px; resize: vertical; }
   function outfitForm(existing) {
     if (!state.items.length) { toast('Add some clothes to your closet first'); return; }
     const sel = new Set(existing ? existing.itemIds : []);
+    const occ = existing ? existing.occasions : (state.outfitFilter ? [state.outfitFilter] : []);
     let filter = 'all';
     openSheet(`
       ${head(existing ? 'Edit outfit' : 'New outfit')}
       <form id="outfitForm" novalidate>
         <div class="field" style="margin-top:4px"><label for="o-name">Name</label>
-          <input class="input" id="o-name" name="name" value="${esc(existing?.name || '')}" placeholder="e.g. Rainy Monday" maxlength="60"></div>
-        <div class="field"><span class="lbl">Occasion</span>
-          <div class="chips" style="flex-wrap:wrap">${OCCASIONS.map(x => `<input class="chip-input" type="radio" name="occasion" id="o-occ-${x.replace(/\s/g, '')}" value="${x}" ${existing?.occasion === x ? 'checked' : ''}><label class="chip" for="o-occ-${x.replace(/\s/g, '')}">${x}</label>`).join('')}</div></div>
+          <input class="input" id="o-name" name="name" value="${esc(existing?.name || '')}" placeholder="e.g. Rainy school day" maxlength="60"></div>
+        <div class="field"><span class="lbl">Type of outing (pick any)</span>
+          <div class="chips wrapping">${OCCASIONS.map(x => `<input class="chip-input" type="checkbox" name="occasions" id="o-occ-${x}" value="${x}" ${occ.includes(x) ? 'checked' : ''}><label class="chip" for="o-occ-${x}">${x}</label>`).join('')}</div></div>
         <div class="field"><span class="lbl">Pieces · <span id="selCount">${sel.size}</span> selected</span>
           <div class="chips" id="pickFilter">${[{ id: 'all', label: 'All' }, ...CATS.filter(c => state.items.some(i => i.category === c.id))].map(c => `<button type="button" class="chip" data-f="${c.id}" aria-pressed="${c.id === 'all'}">${c.label}</button>`).join('')}</div>
           <div class="picker-grid" id="picker"></div></div>
@@ -685,41 +1038,173 @@ textarea.input { min-height: 72px; resize: vertical; }
         if (!sel.size) { toast('Pick at least one piece'); return; }
         const fd = new FormData(e.target);
         const name = String(fd.get('name') || '').trim() || `Outfit ${state.outfits.length + 1}`;
-        const rec = { ...(existing || { id: uid(), created: Date.now(), wornDates: [] }), name, occasion: fd.get('occasion') || '', itemIds: [...sel] };
-        if (existing) { const idx = state.outfits.findIndex(x => x.id === rec.id); state.outfits[idx] = rec; }
+        const rec = { ...(existing || { id: uid(), created: Date.now(), wornDates: [] }), name, occasions: fd.getAll('occasions'), itemIds: [...sel] };
+        delete rec.occasion;
+        if (existing) state.outfits[state.outfits.findIndex(x => x.id === rec.id)] = rec;
         else state.outfits.push(rec);
         await save('outfits', rec);
-        closeSheet(); state.view = 'outfits'; persistView(); render();
+        closeSheet(); if (state.view !== 'today') { state.view = 'outfits'; persistView(); } render();
         toast(existing ? 'Outfit saved' : 'Outfit created');
       });
     });
   }
 
+  function openWish(id) {
+    const w = state.wish.find(x => x.id === id); if (!w) return;
+    const cur = w.prices.slice(-1)[0]?.price;
+    const low = Math.min(...w.prices.map(p => p.price));
+    openSheet(`
+      ${head(esc(w.name))}
+      <div class="row between"><span class="price" style="font-size:1.8rem">${money(cur)}</span>${w.target != null ? `<span class="pill ${cur <= w.target ? 'good' : ''}">Your price ${money(w.target)}</span>` : ''}</div>
+      <div style="margin-top:10px;background:var(--surface);border-radius:var(--radius);padding:10px">${spark(w.prices, w.target, 'spark spark-lg')}</div>
+      <dl class="label-card">
+        ${w.store ? `<div><dt>Store</dt><dd>${esc(w.store)}</dd></div>` : ''}
+        ${w.link ? `<div><dt>Link</dt><dd>${/^https?:\/\//.test(w.link) ? `<a href="${esc(w.link)}" target="_blank" rel="noopener" style="color:var(--accent)">Open product page</a>` : esc(w.link)}</dd></div>` : ''}
+        <div><dt>Lowest seen</dt><dd>${money(low)}</dd></div>
+        <div><dt>Added</dt><dd>${daysAgo(w.prices[0]?.date)}</dd></div>
+      </dl>
+      <form id="priceForm" class="row" style="margin-top:14px;flex-wrap:nowrap" novalidate>
+        <input class="input" id="w-newprice" name="price" inputmode="decimal" placeholder="Today's price" aria-label="Today's price">
+        <button class="btn" type="submit" style="flex:none">Log price</button>
+      </form>
+      <div class="section-lbl">Price history</div>
+      <div class="hist">${[...w.prices].reverse().map(p => `<div><span>${daysAgo(p.date)}</span><span>${money(p.price)}</span></div>`).join('')}</div>
+      <div class="actions"><button class="btn primary block" data-action="bought-wish" data-id="${w.id}">I bought it · move to closet</button></div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn" data-action="edit-wish" data-id="${w.id}">Edit</button>
+        <button class="btn danger" data-action="delete-wish" data-id="${w.id}" data-confirm="Tap again to remove">Remove</button>
+      </div>
+    `, sheet => {
+      $('#priceForm', sheet).addEventListener('submit', async e => {
+        e.preventDefault();
+        const p = parsePrice($('#w-newprice', sheet).value);
+        if (p == null) { toast('Enter a price, like 49.99'); return; }
+        const last = w.prices[w.prices.length - 1];
+        if (last && last.date === today()) last.price = p; else w.prices.push({ date: today(), price: p });
+        await save('wish', w); render(); openWish(w.id);
+        toast(w.target != null && p <= w.target ? 'At or below your price!' : 'Price logged');
+      });
+    });
+  }
+
+  function wishForm(existing) {
+    const w = existing || { name: '', category: 'top', colors: [], store: '', link: '', target: null, prices: [], photo: null };
+    let photo = w.photo;
+    openSheet(`
+      ${head(existing ? 'Edit wish' : 'Add to wishlist')}
+      <form id="wishForm" novalidate>
+        <label class="photo-pick" for="w-photo" id="wPick" style="aspect-ratio:16/9"></label>
+        <input type="file" id="w-photo" accept="image/*" hidden>
+        <div class="field"><label for="w-name">What is it?</label><input class="input" id="w-name" name="name" value="${esc(w.name)}" placeholder="e.g. Black leather jacket" maxlength="80"></div>
+        <div class="field"><span class="lbl">Category</span>
+          <div class="chips wrapping">${CATS.map(c => `<input class="chip-input" type="radio" name="category" id="w-cat-${c.id}" value="${c.id}" ${w.category === c.id ? 'checked' : ''}><label class="chip" for="w-cat-${c.id}">${c.one}</label>`).join('')}</div></div>
+        <div class="two">
+          <div class="field"><label for="w-price">${existing ? 'Current price' : 'Price now'}</label><input class="input" id="w-price" name="price" inputmode="decimal" value="${w.prices.slice(-1)[0]?.price ?? ''}" placeholder="0.00"></div>
+          <div class="field"><label for="w-target">Buy if under</label><input class="input" id="w-target" name="target" inputmode="decimal" value="${w.target ?? ''}" placeholder="Optional"></div>
+        </div>
+        <div class="field"><label for="w-store">Store</label><input class="input" id="w-store" name="store" value="${esc(w.store)}" maxlength="60" placeholder="Optional"></div>
+        <div class="field"><label for="w-link">Link</label><input class="input" id="w-link" name="link" value="${esc(w.link)}" inputmode="url" placeholder="Paste the product page (optional)"></div>
+        <div class="actions"><button class="btn primary block" type="submit" id="saveWish">${existing ? 'Save' : 'Add to wishlist'}</button></div>
+      </form>
+    `, sheet => {
+      const form = $('#wishForm', sheet);
+      const draw = () => {
+        const cat = new FormData(form).get('category') || 'top';
+        $('#wPick', sheet).innerHTML = (photo ? `<img src="${photo}" alt="">` : silhouette({ category: cat, colors: ['grey'] })) + `<span class="hint">${photo ? 'Change photo' : 'Add a photo or screenshot'}</span>`;
+      };
+      draw();
+      form.addEventListener('change', e => { if (e.target.name === 'category') draw(); });
+      $('#w-photo', sheet).addEventListener('change', async e => {
+        const f = e.target.files && e.target.files[0]; if (!f) return;
+        try { photo = await compress(f); draw(); } catch (err) { toast("That image couldn't be read."); }
+        e.target.value = '';
+      });
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const name = String(fd.get('name') || '').trim();
+        const price = parsePrice(fd.get('price'));
+        if (!name) { toast('Give it a name first'); return; }
+        if (price == null) { toast('Add the current price'); return; }
+        const rec = { ...(existing || { id: uid(), created: Date.now(), prices: [], colors: [] }), name, category: fd.get('category') || 'top', store: String(fd.get('store') || '').trim(), link: String(fd.get('link') || '').trim(), target: parsePrice(fd.get('target')), photo };
+        const last = rec.prices[rec.prices.length - 1];
+        if (!last || last.price !== price) {
+          if (last && last.date === today()) last.price = price; else rec.prices.push({ date: today(), price });
+        }
+        if (existing) state.wish[state.wish.findIndex(x => x.id === rec.id)] = rec; else state.wish.unshift(rec);
+        await save('wish', rec); closeSheet(); render();
+        toast(existing ? 'Saved' : 'Added to wishlist');
+      });
+    });
+  }
+
+  function openSettings() {
+    const counts = CATS.map(c => {
+      const its = state.items.filter(i => i.category === c.id);
+      return { ...c, n: its.length, v: its.reduce((s, i) => s + (i.price || 0), 0) };
+    }).filter(c => c.n);
+    const max = Math.max(1, ...counts.map(c => c.v));
+    const st = wardrobeStats();
+    const never = state.items.filter(i => !i.wornCount);
+    const hasSamples = state.items.some(i => i.sample) || state.outfits.some(o => o.sample) || state.wish.some(w => w.sample);
+    openSheet(`
+      ${head('Wardrobe')}
+      <div class="stats" style="margin-top:0">
+        <div class="stat"><b>${money(st.value)}</b><span>total value</span></div>
+        <div class="stat"><b>${state.outfits.length}</b><span>outfits</span></div>
+        <div class="stat"><b>${never.length}</b><span>never worn</span></div>
+      </div>
+      ${counts.length ? `<div class="section-lbl">Value by category</div><div class="bars">${counts.map(c => `<div class="bar"><span>${c.label}</span><div class="track"><div class="fill" style="width:${(c.v / max) * 100}%"></div></div><span class="n">${money(c.v)}</span></div>`).join('')}</div>` : ''}
+      ${never.length ? `<div class="section-lbl">Never worn</div><div class="mini-row">${never.map(i => `<button class="mini" data-action="open-item" data-id="${i.id}"><div class="pic">${pic(i)}</div><span>${esc(i.name)}</span></button>`).join('')}</div>` : ''}
+      <div class="section-lbl">Settings</div>
+      <div class="panel">
+        <div class="row between"><span>Currency</span><div class="chips" style="padding:0">${CURRENCIES.map(c => `<button class="chip" data-action="set-currency" data-v="${c}" aria-pressed="${state.settings.currency === c}">${c}</button>`).join('')}</div></div>
+        <div class="row between"><span>Temperature</span><div class="chips" style="padding:0">${['C', 'F'].map(u => `<button class="chip" data-action="set-unit" data-v="${u}" aria-pressed="${state.settings.unit === u}">°${u}</button>`).join('')}</div></div>
+      </div>
+      <div class="section-lbl">Your data</div>
+      <div class="panel">
+        <p>${Store.persistent() ? 'Everything is saved on this phone only. Clearing your browser data for this page erases it.' : 'This browser blocked storage, so changes last only until you close the page.'}</p>
+        ${hasSamples ? '<button class="btn" data-action="remove-samples">Remove all examples</button>' : ''}
+        <button class="btn danger" data-action="wipe" data-confirm="Tap again to erase everything">Erase everything</button>
+      </div>
+    `);
+  }
+
   // ---------- Actions ----------
   async function wearItems(ids) {
-    const d = today();
+    const d = today(), toHamper = [];
     for (const id of ids) {
       const i = itemById(id); if (!i) continue;
       i.wornCount = (i.wornCount || 0) + 1; i.lastWorn = d;
+      if (washable(i)) {
+        i.wearsSinceWash = (i.wearsSinceWash || 0) + 1;
+        if (i.wearsSinceWash >= i.washEvery && !isDirty(i)) { i.status = 'dirty'; toHamper.push(i.name); }
+      }
       await save('items', i);
     }
+    return toHamper;
   }
+  const hamperNote = names => names.length ? ` ${names.length === 1 ? names[0] + ' goes' : plural(names.length, 'piece') + ' go'} in the hamper.` : '';
+
+  async function setClean(i) { i.status = 'clean'; i.wearsSinceWash = 0; i.lastWashed = today(); await save('items', i); }
 
   async function removeSamples() {
-    const ids = state.items.filter(i => i.sample).map(i => i.id);
+    const ids = new Set(state.items.filter(i => i.sample).map(i => i.id));
     for (const id of ids) await Store.del('items', id);
     state.items = state.items.filter(i => !i.sample);
     for (const o of state.outfits.filter(o => o.sample)) await Store.del('outfits', o.id);
     state.outfits = state.outfits.filter(o => !o.sample);
+    for (const w of state.wish.filter(w => w.sample)) await Store.del('wish', w.id);
+    state.wish = state.wish.filter(w => !w.sample);
     for (const o of state.outfits) {
       const before = o.itemIds.length;
-      o.itemIds = o.itemIds.filter(id => !ids.includes(id));
+      o.itemIds = o.itemIds.filter(id => !ids.has(id));
       if (o.itemIds.length !== before) await save('outfits', o);
     }
-    render(); toast('Examples removed');
   }
 
   function persistView() { try { localStorage.setItem('nd-view', state.view); } catch (e) {} }
+  function persistToday() { try { localStorage.setItem('nd-today', JSON.stringify(state.today)); } catch (e) {} }
 
   // Two-step confirm for destructive buttons (dialogs aren't available)
   function confirmed(btn) {
@@ -731,23 +1216,35 @@ textarea.input { min-height: 72px; resize: vertical; }
 
   document.addEventListener('click', async e => {
     const tab = e.target.closest('[data-tab]');
-    if (tab) { state.view = tab.dataset.tab; persistView(); render(); window.scrollTo(0, 0); return; }
+    if (tab) { if (!$('#sheetRoot').hidden) closeSheet(); state.view = tab.dataset.tab; persistView(); render(); window.scrollTo(0, 0); return; }
     const b = e.target.closest('[data-action]'); if (!b) return;
     const id = b.dataset.id;
     switch (b.dataset.action) {
       case 'close-sheet': closeSheet(); break;
+      case 'settings': openSettings(); break;
       case 'add-item': itemForm(); break;
       case 'new-outfit': outfitForm(); break;
+      case 'add-wish': wishForm(); break;
+      case 'weather': state.today.weather = b.dataset.v; persistToday(); render(); break;
+      case 'occasion': state.today.occasion = b.dataset.v; persistToday(); render(); break;
       case 'cat': state.closet.cat = b.dataset.v; render(); break;
       case 'color': state.closet.color = state.closet.color === b.dataset.v ? null : b.dataset.v; render(); break;
-      case 'reset-filters': state.closet = { q: '', cat: 'all', color: null, sort: state.closet.sort }; render(); break;
+      case 'clean-only': state.closet.cleanOnly = !state.closet.cleanOnly; render(); break;
+      case 'outfit-filter': state.outfitFilter = b.dataset.v; render(); break;
+      case 'reset-filters': state.closet = { q: '', cat: 'all', color: null, sort: state.closet.sort, cleanOnly: false }; render(); break;
       case 'open-item': openItem(id); break;
-      case 'edit-item': itemForm(itemById(id)); break;
+      case 'edit-item': itemForm({ existing: itemById(id) }); break;
       case 'fav': { const i = itemById(id); i.fav = !i.fav; await save('items', i); render(); openItem(id); break; }
+      case 'toggle-dirty': {
+        const i = itemById(id);
+        if (isDirty(i)) { await setClean(i); toast('Marked clean'); }
+        else { i.status = 'dirty'; await save('items', i); toast('Put in the hamper'); }
+        render(); openItem(id); break;
+      }
       case 'wear-item': {
         const i = itemById(id);
         if (i.lastWorn === today()) { toast('Already logged for today'); break; }
-        await wearItems([id]); render(); openItem(id); toast('Logged for today'); break;
+        const moved = await wearItems([id]); render(); openItem(id); toast('Logged for today.' + hamperNote(moved)); break;
       }
       case 'delete-item': {
         if (!confirmed(b)) break;
@@ -762,24 +1259,43 @@ textarea.input { min-height: 72px; resize: vertical; }
         o.wornDates = o.wornDates || [];
         if (o.wornDates.includes(today())) { toast('Already logged for today'); break; }
         o.wornDates.push(today()); await save('outfits', o);
-        await wearItems(o.itemIds.filter(x => itemById(x)?.lastWorn !== today()));
-        render(); openOutfit(id); toast('Logged outfit for today'); break;
+        const moved = await wearItems(o.itemIds.filter(x => itemById(x)?.lastWorn !== today()));
+        render(); openOutfit(id); toast(`Wearing ${o.name} today.` + hamperNote(moved)); break;
       }
       case 'delete-outfit': {
         if (!confirmed(b)) break;
         state.outfits = state.outfits.filter(o => o.id !== id); await Store.del('outfits', id);
         closeSheet(); render(); toast('Outfit deleted'); break;
       }
-      case 'remove-samples': await removeSamples(); break;
+      case 'wash-load': {
+        const its = state.items.filter(i => isDirty(i) && loadFor(i) === b.dataset.v);
+        for (const i of its) await setClean(i);
+        render(); toast(`${LOADS[b.dataset.v].label}: ${plural(its.length, 'piece')} clean again`); break;
+      }
+      case 'open-wish': openWish(id); break;
+      case 'edit-wish': wishForm(state.wish.find(w => w.id === id)); break;
+      case 'delete-wish': {
+        if (!confirmed(b)) break;
+        state.wish = state.wish.filter(w => w.id !== id); await Store.del('wish', id);
+        closeSheet(); render(); toast('Removed from wishlist'); break;
+      }
+      case 'bought-wish': {
+        const w = state.wish.find(x => x.id === id);
+        itemForm({ prefill: { name: w.name, category: w.category, colors: w.colors || [], price: w.prices.slice(-1)[0]?.price ?? null, photo: w.photo, brand: w.store || '' }, fromWishId: id });
+        break;
+      }
+      case 'set-currency': state.settings.currency = b.dataset.v; await save('meta', state.settings); render(); openSettings(); break;
+      case 'set-unit': state.settings.unit = b.dataset.v; await save('meta', state.settings); render(); openSettings(); break;
+      case 'remove-samples': await removeSamples(); if (!$('#sheetRoot').hidden) closeSheet(); render(); toast('Examples removed'); break;
       case 'wipe': {
         if (!confirmed(b)) break;
-        await Store.clear('items'); await Store.clear('outfits');
-        state.items = []; state.outfits = []; render(); toast('Closet erased'); break;
+        for (const s of ['items', 'outfits', 'wish']) await Store.clear(s);
+        state.items = []; state.outfits = []; state.wish = []; closeSheet(); render(); toast('Everything erased'); break;
       }
     }
   });
 
-  $('#fab').addEventListener('click', () => state.view === 'outfits' ? outfitForm() : itemForm());
+  $('#fab').addEventListener('click', () => ({ closet: () => itemForm(), outfits: () => outfitForm(), wish: () => wishForm() })[state.view]?.());
   document.addEventListener('input', e => {
     if (e.target.id === 'q') {
       state.closet.q = e.target.value;
@@ -791,49 +1307,73 @@ textarea.input { min-height: 72px; resize: vertical; }
   document.addEventListener('change', e => { if (e.target.id === 'sort') { state.closet.sort = e.target.value; render(); } });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheetRoot').hidden) closeSheet(); });
 
-  // ---------- Examples (first run only) ----------
+  // ---------- Examples ----------
   function sampleData() {
     const t = Date.now();
-    const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
-    const mk = (id, name, category, colors, seasons, brand, wornCount, lastWornDays, extra = {}) => ({
-      id, name, category, colors, seasons, brand, notes: '', photo: null, fav: false, wornCount,
-      lastWorn: lastWornDays == null ? null : d(lastWornDays), created: t - Number(id.slice(1)) * 1000, sample: true, ...extra,
+    const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return isoDate(x); };
+    const all = SEASONS;
+    let n = 0;
+    const mk = (name, category, colors, seasons, price, wornCount, lastWornDays, extra = {}) => normalizeItem({
+      id: 's' + (++n), name, category, colors, seasons, price, wornCount, brand: '',
+      lastWorn: lastWornDays == null ? null : d(lastWornDays), created: t - n * 1000, sample: true, ...extra,
     });
-    const all = ['Spring', 'Summer', 'Fall', 'Winter'];
     const items = [
-      mk('s1', 'White oxford shirt', 'top', ['white'], all, 'Uniqlo', 14, 2, { fav: true, notes: 'Size M. Iron on medium.' }),
-      mk('s2', 'Navy crewneck sweater', 'top', ['navy'], ['Fall', 'Winter'], 'COS', 9, 5),
-      mk('s3', 'Breton striped top', 'top', ['white', 'navy'], ['Spring', 'Summer'], 'Saint James', 6, 12),
-      mk('s4', 'Black tee', 'top', ['black'], all, '', 21, 1),
-      mk('s5', 'Dark wash jeans', 'bottom', ['blue'], all, "Levi's", 25, 1, { fav: true, notes: '501, W30 L32.' }),
-      mk('s6', 'Beige chinos', 'bottom', ['beige'], ['Spring', 'Summer', 'Fall'], '', 7, 9),
-      mk('s7', 'Black midi dress', 'dress', ['black'], all, '', 3, 40),
-      mk('s8', 'Camel wool coat', 'outer', ['beige'], ['Fall', 'Winter'], '', 11, 5),
-      mk('s9', 'Olive field jacket', 'outer', ['olive'], ['Spring', 'Fall'], '', 0, null),
-      mk('s10', 'White leather sneakers', 'shoes', ['white'], ['Spring', 'Summer', 'Fall'], '', 30, 1),
-      mk('s11', 'Brown Chelsea boots', 'shoes', ['brown'], ['Fall', 'Winter'], '', 12, 5),
-      mk('s12', 'Black canvas tote', 'bag', ['black'], all, '', 18, 2),
-      mk('s13', 'Grey beanie', 'acc', ['grey'], ['Winter'], '', 0, null),
+      mk('White oxford shirt', 'top', ['white'], all, 39.9, 14, 6, { brand: 'Uniqlo', fav: true, notes: 'Size M. Iron on medium.' }),
+      mk('Navy crewneck sweater', 'top', ['navy'], ['Fall', 'Winter'], 69, 9, 8, { warmth: 2, washEvery: 3, wearsSinceWash: 2 }),
+      mk('Breton striped top', 'top', ['white', 'navy'], ['Spring', 'Summer'], 55, 6, 2, { status: 'dirty', wearsSinceWash: 1 }),
+      mk('Black tee', 'top', ['black'], all, 12, 21, 1, { status: 'dirty', wearsSinceWash: 1 }),
+      mk('Grey hoodie', 'top', ['grey'], ['Fall', 'Winter', 'Spring'], 45, 17, 3, { warmth: 2, washEvery: 3, wearsSinceWash: 1, fav: true }),
+      mk('Silver party top', 'top', ['silver'], all, 35, 2, 24, { delicate: true }),
+      mk('Dark wash jeans', 'bottom', ['blue'], all, 89, 25, 1, { brand: "Levi's", fav: true, notes: '501, W30 L32.', wearsSinceWash: 3 }),
+      mk('Beige chinos', 'bottom', ['beige'], ['Spring', 'Summer', 'Fall'], 49, 7, 2, { wearsSinceWash: 2 }),
+      mk('Black joggers', 'bottom', ['black'], all, 30, 11, 5, { wearsSinceWash: 4, status: 'dirty' }),
+      mk('Black midi dress', 'dress', ['black'], all, 79, 3, 40),
+      mk('Camel wool coat', 'outer', ['beige'], ['Fall', 'Winter'], 180, 11, 8, { washEvery: 0 }),
+      mk('Black puffer jacket', 'outer', ['black'], ['Winter'], 120, 6, 30, { washEvery: 0 }),
+      mk('Olive field jacket', 'outer', ['olive'], ['Spring', 'Fall'], 95, 0, null, { warmth: 2 }),
+      mk('White leather sneakers', 'shoes', ['white'], ['Spring', 'Summer', 'Fall'], 110, 30, 1),
+      mk('Brown Chelsea boots', 'shoes', ['brown'], ['Fall', 'Winter'], 150, 12, 8),
+      mk('Black canvas tote', 'bag', ['black'], all, 25, 18, 1),
+      mk('Grey beanie', 'acc', ['grey'], ['Winter'], 15, 0, null, { warmth: 3 }),
     ];
+    const id = name => items.find(i => i.name === name).id;
+    const o = (name, occasions, names, wornDaysAgo) => ({ id: 'so-' + name.replace(/\W/g, ''), name, occasions, itemIds: names.map(id), wornDates: wornDaysAgo.map(d).sort(), created: t - 10000 + names.length, sample: true });
     const outfits = [
-      { id: 'so1', name: 'Office Monday', occasion: 'Work', itemIds: ['s1', 's6', 's11', 's8'], wornDates: [d(19), d(5)], created: t - 3000, sample: true },
-      { id: 'so2', name: 'Weekend coffee', occasion: 'Casual', itemIds: ['s3', 's5', 's10', 's12'], wornDates: [d(12)], created: t - 2000, sample: true },
-      { id: 'so3', name: 'Dinner out', occasion: 'Going out', itemIds: ['s7', 's8', 's11'], wornDates: [], created: t - 1000, sample: true },
+      o('Hoodie school day', ['School', 'Casual'], ['Grey hoodie', 'Dark wash jeans', 'White leather sneakers', 'Black canvas tote'], [3, 10]),
+      o('Cold school morning', ['School'], ['Navy crewneck sweater', 'Dark wash jeans', 'Black puffer jacket', 'Grey beanie'], [30]),
+      o('Rainy day layers', ['School', 'Casual'], ['White oxford shirt', 'Beige chinos', 'Olive field jacket', 'Brown Chelsea boots'], []),
+      o('Party night', ['Party'], ['Silver party top', 'Dark wash jeans', 'Brown Chelsea boots'], [24]),
+      o('Dinner out', ['Party', 'Formal'], ['Black midi dress', 'Camel wool coat', 'Brown Chelsea boots'], [40]),
+      o('Weekend coffee', ['Casual'], ['Breton striped top', 'Beige chinos', 'White leather sneakers'], [2, 16]),
+      o('Lazy Sunday', ['Casual', 'Sport'], ['Black tee', 'Black joggers', 'White leather sneakers'], [5]),
+      o('Smart and simple', ['Work', 'School'], ['White oxford shirt', 'Beige chinos', 'Camel wool coat', 'Brown Chelsea boots'], [8]),
     ];
-    return { items, outfits };
+    const w = (name, category, store, target, prices) => ({ id: 'sw-' + name.replace(/\W/g, ''), name, category, colors: [], store, link: '', target, photo: null, created: t, sample: true, prices: prices.map(([days, price]) => ({ date: d(days), price })) });
+    const wish = [
+      w('Black leather jacket', 'outer', 'AllSaints', 250, [[60, 349], [38, 349], [21, 299], [6, 279]]),
+      w('Retro court sneakers', 'shoes', 'Sneaker store', 110, [[45, 130], [20, 130], [3, 109]]),
+      w('Linen summer shirt', 'top', 'Online', 45, [[30, 49.9], [9, 59.9]]),
+      w('Wide-leg trousers', 'bottom', 'Mall', null, [[2, 65]]),
+    ];
+    return { items, outfits, wish };
   }
 
   async function boot() {
     await Store.open();
-    state.items = await Store.all('items');
-    state.outfits = await Store.all('outfits');
+    state.items = (await Store.all('items')).map(normalizeItem);
+    state.outfits = (await Store.all('outfits')).map(normalizeOutfit);
+    state.wish = await Store.all('wish');
     const meta = await Store.all('meta');
-    if (!meta.some(m => m.id === 'seeded')) {
-      const s = sampleData();
-      state.items = s.items; state.outfits = s.outfits;
-      for (const i of s.items) await Store.put('items', i);
-      for (const o of s.outfits) await Store.put('outfits', o);
-      await Store.put('meta', { id: 'seeded', at: Date.now() });
+    const s = meta.find(m => m.id === 'settings'); if (s) state.settings = { ...state.settings, ...s };
+    if (!meta.some(m => m.id === 'seeded-v2')) {
+      // Swap the first prototype's examples for the new set; keep anything the user added
+      await removeSamples();
+      const data = sampleData();
+      state.items.push(...data.items); state.outfits.push(...data.outfits); state.wish.push(...data.wish);
+      for (const i of data.items) await Store.put('items', i);
+      for (const o of data.outfits) await Store.put('outfits', o);
+      for (const w of data.wish) await Store.put('wish', w);
+      await Store.put('meta', { id: 'seeded-v2', at: Date.now() });
     }
     render();
   }
