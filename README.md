@@ -35,6 +35,11 @@ Settings → **Back up now** → **Save to Files** → iCloud Drive. To restore 
 | `public/sw.js` | Makes the app open offline |
 | `index.html` (root) | The earlier single-file prototype (Claude artifact) |
 
+## Planned features
+
+- **Vacation packing.** Pick the destination, dates and planned outings, and get a packing list of outfits that reuse pieces, with laundry taken into account. It uses the destination's forecast (Open-Meteo goes up to 16 days ahead) or typical weather for trips further out.
+- **Weekly planning.** Assign an outfit to each day of the week from the forecast and your outings (school, party…). Repeats and pieces that will be in the hamper are avoided, and "Wore it" is logged from the plan.
+
 ## Run it on a computer
 
 ```sh
