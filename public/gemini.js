@@ -109,7 +109,7 @@ export async function recognizeItem({ prompt, photo, label, signal }) {
 }
 
 // Finds a product from a store link or a description ("Levi's 501 black") and returns its details
-export async function lookupProduct({ url, text, categories, colors, signal }) {
+export async function lookupProduct({ url, text, categories, colors, tags = {}, signal }) {
   const given = url ? `this product page: ${url}` : `this description: "${text}"`;
   const prompt = `Find this clothing product and its details. The user gave ${given}.
 ${url ? 'Read that page. If you cannot open it, search the web for the product it points to.' : 'Search the web for the most likely exact product.'}
@@ -122,6 +122,9 @@ Reply with only a JSON object:
  "seasons": ["any of: Spring, Summer, Fall, Winter"],
  "warmth": 1 for light, 2 for medium, 3 for warm,
  "washEvery": wears before washing (1, 2, 3, 5 or 10), or 0 if not machine washed,
+ "fit": ["0 to 2 of: ${(tags.fit || []).join(', ')}"],
+ "goodFor": ["any that clearly apply: ${(tags.goodFor || []).join(', ')}"],
+ "style": ["1 or 2 of: ${(tags.style || []).join(', ')}"],
  "price": current price as a number or null, "currency": "3-letter code or null",
  "store": "site name", "url": "product page address",
  "images": ["up to 6 direct https addresses of this product's photos from the page or search results"],

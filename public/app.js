@@ -22,6 +22,14 @@ const COLORS = {
 const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter'];
 const SEASON_ABBR = { Spring: 'SP', Summer: 'SU', Fall: 'FA', Winter: 'WI' };
 const OCCASIONS = ['Casual', 'School', 'Party', 'Work', 'Sport', 'Formal'];
+// Piece attributes. Each list can be extended by the user ("+ Add"); custom values live in settings.tags
+const TAGS = {
+  fit: { label: 'Fit', options: ['Slim', 'Regular', 'Relaxed', 'Boxy', 'Oversized', 'Cropped', 'Tailored', 'Wide'] },
+  goodFor: { label: 'Good for', options: ['Rain', 'Wind', 'Cold', 'Heat', 'Snow', 'Sport', 'Travel'] },
+  style: { label: 'Style', options: ['Casual', 'Streetwear', 'Minimal', 'Classic', 'Sporty', 'Smart', 'Chic', 'Vintage', 'Preppy', 'Edgy'] },
+};
+const COMFY = ['Not comfy', 'A bit stiff', 'Okay', 'Comfy', 'Like pajamas'];
+const tagOptions = key => [...TAGS[key].options, ...((state.settings.tags || {})[key] || [])];
 const WARMTH = [{ v: 1, label: 'Light' }, { v: 2, label: 'Medium' }, { v: 3, label: 'Warm' }];
 const WASH_OPTS = [[1, 'After every wear'], [2, 'Every 2 wears'], [3, 'Every 3 wears'], [5, 'Every 5 wears'], [10, 'Every 10 wears'], [0, "Doesn't go in the wash"]];
 const WASH_DEFAULT = { top: 1, bottom: 4, dress: 2, outer: 10, shoes: 0, bag: 0, acc: 0 };
@@ -183,7 +191,8 @@ function normalizeItem(i) {
   return {
     colors: [], seasons: [], brand: '', notes: '', photo: null, fav: false, wornCount: 0, lastWorn: null,
     model: '', link: '', price: null, warmth: WARMTH_DEFAULT[i.category] || 1, washEvery: WASH_DEFAULT[i.category] ?? 1,
-    wearsSinceWash: 0, status: 'clean', delicate: false, lastWashed: null, ...i,
+    wearsSinceWash: 0, status: 'clean', delicate: false, lastWashed: null,
+    fit: [], comfy: null, goodFor: [], style: [], ...i,
   };
 }
 function normalizeOutfit(o) {
@@ -338,6 +347,24 @@ function scoreOutfit(o, w, occasion) {
   else cautions.push(warmth > tgt.warmth ? `Probably too warm for ${temp(w.temp)}` : `Probably too cold for ${temp(w.temp)}`);
   if (tgt.needsLayer && !its.some(i => i.category === 'outer')) { score -= 10; cautions.push(w.rain ? 'No jacket for the rain' : 'No jacket or coat'); }
 
+  const has = tag => its.filter(i => (i.goodFor || []).includes(tag));
+  if (w.rain) {
+    const dry = has('Rain');
+    if (dry.length) { score += 8; reasons.push(`${dry[0].name} handles rain`); }
+  }
+  if (w.temp < 8 && has('Cold').length) { score += 6; reasons.push(`${has('Cold')[0].name} is made for the cold`); }
+  if (w.temp >= 24) {
+    if (has('Heat').length) { score += 6; reasons.push(`${has('Heat')[0].name} is good in the heat`); }
+    if (has('Cold').length) { score -= 8; cautions.push(`${has('Cold')[0].name} is made for cold weather`); }
+  }
+  const rated = its.filter(i => i.comfy);
+  if (rated.length) {
+    const avg = rated.reduce((n, i) => n + i.comfy, 0) / rated.length;
+    score += (avg - 3) * 3;
+    if (avg >= 4) reasons.push(`Comfy: ${avg.toFixed(1)} out of 5`);
+    else if (avg <= 2) cautions.push(`Not very comfy: ${avg.toFixed(1)} out of 5`);
+  }
+
   const seasonal = its.filter(i => (i.seasons || []).some(s => tgt.seasons.includes(s))).length / its.length;
   score += seasonal * 10;
 
@@ -423,7 +450,7 @@ function filteredItems() {
     (cat === 'all' || (cat === 'fav' ? i.fav : i.category === cat)) &&
     (!color || (i.colors || []).includes(color)) &&
     (!cleanOnly || !isDirty(i)) &&
-    (!needle || [i.name, i.brand, i.notes, CAT[i.category]?.one].join(' ').toLowerCase().includes(needle))
+    (!needle || [i.name, i.brand, i.model, i.notes, CAT[i.category]?.one, ...(i.fit || []), ...(i.goodFor || []), ...(i.style || [])].join(' ').toLowerCase().includes(needle))
   );
   const cpw = i => i.price == null ? Infinity : i.price / Math.max(1, i.wornCount || 0);
   const by = {
@@ -433,6 +460,7 @@ function filteredItems() {
     stale: (a, b) => (a.lastWorn || '').localeCompare(b.lastWorn || ''),
     price: (a, b) => (b.price || 0) - (a.price || 0),
     cpw: (a, b) => cpw(b) - cpw(a),
+    comfy: (a, b) => (b.comfy || 0) - (a.comfy || 0),
   };
   return list.sort(by[sort] || by.new);
 }
@@ -458,7 +486,7 @@ function closetView() {
       <div class="stat"><b>${state.items.length}</b><span>pieces</span></div>
       <div class="stat"><b>${st.cpw == null ? '—' : money(st.cpw)}</b><span>avg per wear</span></div>
     </div>
-    <div style="margin-top:12px"><input class="search" id="q" type="search" placeholder="Search name, brand, notes" value="${esc(c.q)}" autocomplete="off"></div>
+    <div style="margin-top:12px"><input class="search" id="q" type="search" placeholder="Search name, brand, fit, style…" value="${esc(c.q)}" autocomplete="off"></div>
     <div class="chips" role="group" aria-label="Category">
       ${[{ id: 'all', label: 'All' }, { id: 'fav', label: '♥ Favorites' }, ...CATS].map(x => `<button class="chip" data-action="cat" data-v="${x.id}" aria-pressed="${c.cat === x.id}">${x.label}</button>`).join('')}
     </div>
@@ -469,7 +497,7 @@ function closetView() {
       <div class="row">
         <button class="chip" data-action="clean-only" aria-pressed="${c.cleanOnly}">Clean only</button>
         <select class="sort" id="sort" aria-label="Sort">
-          ${[['new', 'Newest'], ['most', 'Most worn'], ['least', 'Least worn'], ['stale', 'Not worn lately'], ['price', 'Highest price'], ['cpw', 'Highest cost per wear']].map(([v, l]) => `<option value="${v}" ${c.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+          ${[['new', 'Newest'], ['most', 'Most worn'], ['least', 'Least worn'], ['stale', 'Not worn lately'], ['price', 'Highest price'], ['cpw', 'Highest cost per wear'], ['comfy', 'Most comfy']].map(([v, l]) => `<option value="${v}" ${c.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -614,6 +642,10 @@ function openItem(id) {
     <dl class="label-card">
       <div><dt>Category</dt><dd>${CAT[i.category]?.one || ''}</dd></div>
       <div><dt>Color</dt><dd>${dots(i.colors)} ${(i.colors || []).join(', ')}</dd></div>
+      ${i.fit?.length ? `<div><dt>Fit</dt><dd>${esc(i.fit.join(', '))}</dd></div>` : ''}
+      ${i.comfy ? `<div><dt>Comfort</dt><dd><span class="comfy-dots" aria-label="${i.comfy} out of 5">${'●'.repeat(i.comfy)}${'○'.repeat(5 - i.comfy)}</span> ${COMFY[i.comfy - 1]}</dd></div>` : ''}
+      ${i.goodFor?.length ? `<div><dt>Good for</dt><dd>${esc(i.goodFor.join(', '))}</dd></div>` : ''}
+      ${i.style?.length ? `<div><dt>Style</dt><dd>${esc(i.style.join(', '))}</dd></div>` : ''}
       <div><dt>Season</dt><dd>${(i.seasons || []).length === 4 ? 'All year' : (i.seasons || []).map(s => SEASON_ABBR[s]).join(' / ') || '—'} · ${WARMTH.find(x => x.v === i.warmth)?.label || ''}</dd></div>
       ${i.brand ? `<div><dt>Brand</dt><dd>${esc(i.brand)}</dd></div>` : ''}
       ${i.model ? `<div><dt>Model</dt><dd>${esc(i.model)}</dd></div>` : ''}
@@ -675,6 +707,12 @@ function itemForm({ existing, prefill, fromWishId } = {}) {
         <div class="chips wrapping">${SEASONS.map(s => `<input class="chip-input" type="checkbox" name="seasons" id="f-sea-${s}" value="${s}" ${i.seasons.includes(s) ? 'checked' : ''}><label class="chip" for="f-sea-${s}">${s}</label>`).join('')}</div></div>
       <div class="field"><span class="lbl">How warm is it?</span>
         <div class="chips wrapping">${WARMTH.map(x => `<input class="chip-input" type="radio" name="warmth" id="f-warm-${x.v}" value="${x.v}" ${i.warmth === x.v ? 'checked' : ''}><label class="chip" for="f-warm-${x.v}">${x.label}</label>`).join('')}</div></div>
+      ${tagField('fit', i.fit)}
+      <div class="field"><span class="lbl">Comfort</span>
+        <div class="chips wrapping comfy-pick">${[1, 2, 3, 4, 5].map(n => `<input class="chip-input" type="radio" name="comfy" id="f-comfy-${n}" value="${n}" ${i.comfy === n ? 'checked' : ''}><label class="chip" for="f-comfy-${n}" title="${COMFY[n - 1]}">${n}</label>`).join('')}
+          <span class="sub" id="comfyHint">${i.comfy ? COMFY[i.comfy - 1] : '1 = not comfy · 5 = like pajamas'}</span></div></div>
+      ${tagField('goodFor', i.goodFor)}
+      ${tagField('style', i.style)}
       <div class="field"><label for="f-wash">Wash it</label>
         <select class="input" id="f-wash" name="washEvery">${WASH_OPTS.map(([v, l]) => `<option value="${v}" ${i.washEvery === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <label class="checkline"><input type="checkbox" name="delicate" id="f-delicate" ${i.delicate ? 'checked' : ''}> Delicate (hand wash or gentle cycle)</label>
@@ -697,7 +735,9 @@ function itemForm({ existing, prefill, fromWishId } = {}) {
     const ai = photoTools(sheet, form, ph, fill => { washTouched = washTouched || fill; });
     if (!existing) lookupTools(sheet, ai);
     refreshPreview();
+    wireTagFields(sheet);
     form.addEventListener('change', e => {
+      if (e.target.name === 'comfy') $('#comfyHint', sheet).textContent = COMFY[Number(e.target.value) - 1];
       if (e.target.name === 'colors' && form.querySelectorAll('input[name="colors"]:checked').length > 2) { e.target.checked = false; toast('Pick up to 2 colors'); }
       if (e.target.name === 'washEvery') washTouched = true;
       if (e.target.name === 'category') {
@@ -729,6 +769,7 @@ function itemForm({ existing, prefill, fromWishId } = {}) {
         brand: String(fd.get('brand') || '').trim(), model: String(fd.get('model') || '').trim(), notes: String(fd.get('notes') || '').trim(), photo: ph.photo, officialUrl: ph.official,
         link: /^https?:\/\//i.test(String(fd.get('link') || '').trim()) ? String(fd.get('link')).trim() : '',
         price: parsePrice(fd.get('price')), warmth: Number(fd.get('warmth')) || 1, washEvery, delicate: fd.get('delicate') === 'on',
+        fit: fd.getAll('fit'), goodFor: fd.getAll('goodFor'), style: fd.getAll('style'), comfy: Number(fd.get('comfy')) || null,
       };
       if (!washEvery) { rec.status = 'clean'; rec.wearsSinceWash = 0; }
       delete rec.sample;
@@ -765,7 +806,10 @@ Reply with only a JSON object in this shape:
  "model": "exact product or model name or null",
  "confidence": "high, medium or low: how sure you are of the brand and model",
  "evidence": "under 12 words: what you identified it from, e.g. logo on tongue, label text, signature stitching",
- "washEvery": wears before washing (1, 2, 3, 5 or 10), or 0 if it is not machine washed (shoes, bags, coats)}
+ "washEvery": wears before washing (1, 2, 3, 5 or 10), or 0 if it is not machine washed (shoes, bags, coats),
+ "fit": ["0 to 2 of: ${TAGS.fit.options.join(', ')}"],
+ "goodFor": ["any that clearly apply: ${TAGS.goodFor.options.join(', ')}"],
+ "style": ["1 or 2 of: ${TAGS.style.options.join(', ')}"]}
 Rules: only give a brand or model when something visible supports it (a logo, label text, or an unmistakable signature design). Never invent style numbers. If you cannot tell, use null and confidence "low". Colors and category must come from the lists.`;
 
 // Try to keep the official photo on the phone; most stores allow it, some block it
@@ -840,6 +884,10 @@ function photoTools(sheet, form, ph, markWash) {
     if (seas.length) form.querySelectorAll('input[name="seasons"]').forEach(el => { el.checked = seas.includes(el.value); });
     const w = Number(r.warmth); if ([1, 2, 3].includes(w)) { const el = $(`#f-warm-${w}`, sheet); if (el) el.checked = true; }
     const we = Number(r.washEvery); if (WASH_OPTS.some(([v]) => v === we)) { set('#f-wash', String(we)); markWash(true); }
+    for (const key of Object.keys(TAGS)) {
+      const vals = (Array.isArray(r[key]) ? r[key] : []).map(String);
+      if (vals.length) form.querySelectorAll(`input[name="${key}"]`).forEach(el => { if (vals.includes(el.value)) el.checked = true; });
+    }
   }
 
   // Keep only candidates that actually load as images
@@ -971,7 +1019,7 @@ function lookupTools(sheet, tools) {
     btn.disabled = true;
     out.innerHTML = `<div class="row"><span class="sub thinking">${isUrl(v) ? 'Reading the product page…' : 'Searching for it…'}</span><button type="button" class="linkbtn" data-lk="stop">Stop</button></div>`;
     try {
-      const r = await Gemini.lookupProduct({ url: isUrl(v) ? v : null, text: isUrl(v) ? null : v, categories: CATS.map(c => c.id), colors: Object.keys(COLORS), signal: ctl.signal });
+      const r = await Gemini.lookupProduct({ url: isUrl(v) ? v : null, text: isUrl(v) ? null : v, categories: CATS.map(c => c.id), colors: Object.keys(COLORS), tags: Object.fromEntries(Object.entries(TAGS).map(([k, t]) => [k, t.options])), signal: ctl.signal });
       if (!r.found || !r.name) { out.innerHTML = `<p class="sub">Couldn't find that product. Check the link, or try a more exact name with the brand.</p>`; return; }
       if (isUrl(v) && !r.url) r.url = v;
       r.confidence = ['high', 'medium', 'low'].includes(r.confidence) ? r.confidence : 'low';
@@ -1015,6 +1063,44 @@ function lookupTools(sheet, tools) {
       tools.useLookup(r);
     }
   });
+}
+
+// Multi-choice chips with "+ Add" for the user's own values (saved for next time)
+function tagField(key, selected = []) {
+  const opts = [...new Set([...tagOptions(key), ...selected])];
+  return `<div class="field" data-tags="${key}"><span class="lbl">${TAGS[key].label}</span>
+    <div class="chips wrapping">${opts.map(o => tagChip(key, o, selected.includes(o))).join('')}
+      <button type="button" class="chip add-tag" data-add-tag="${key}">+ Add</button></div></div>`;
+}
+let tagN = 0;
+const tagChip = (key, value, on) => { const id = `f-${key}-${++tagN}`; return `<input class="chip-input" type="checkbox" name="${key}" id="${id}" value="${esc(value)}" ${on ? 'checked' : ''}><label class="chip" for="${id}">${esc(value)}</label>`; };
+function wireTagFields(sheet) {
+  sheet.querySelectorAll('[data-add-tag]').forEach(btn => btn.addEventListener('click', () => {
+    const key = btn.dataset.addTag;
+    const input = document.createElement('input');
+    input.className = 'chip tag-input'; input.maxLength = 24; input.placeholder = `New ${TAGS[key].label.toLowerCase()}`;
+    input.setAttribute('aria-label', `New ${TAGS[key].label.toLowerCase()}`);
+    btn.replaceWith(input); input.focus();
+    let finished = false;
+    const done = async commit => {
+      if (finished) return;
+      finished = true;
+      const v = input.value.trim().replace(/\s+/g, ' ');
+      if (commit && v) {
+        const exists = [...sheet.querySelectorAll(`input[name="${key}"]`)].find(el => el.value.toLowerCase() === v.toLowerCase());
+        if (exists) exists.checked = true;
+        else {
+          input.insertAdjacentHTML('beforebegin', tagChip(key, v, true));
+          state.settings.tags = { ...(state.settings.tags || {}) };
+          state.settings.tags[key] = [...(state.settings.tags[key] || []), v];
+          await save('meta', state.settings);
+        }
+      }
+      input.replaceWith(btn);
+    };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); done(true); } else if (e.key === 'Escape') done(false); });
+    input.addEventListener('blur', () => done(true));
+  }));
 }
 
 // Shrinks a photo for storage. Keeps PNG when the image has transparency (cutouts), else JPEG.
@@ -1472,19 +1558,19 @@ function sampleData() {
     lastWorn: lastWornDays == null ? null : d(lastWornDays), created: t - n * 1000, sample: true, ...extra,
   });
   const items = [
-    mk('White oxford shirt', 'top', ['white'], all, 39.9, 14, 6, { brand: 'Uniqlo', fav: true, notes: 'Size M. Iron on medium.' }),
+    mk('White oxford shirt', 'top', ['white'], all, 39.9, 14, 6, { brand: 'Uniqlo', fav: true, notes: 'Size M. Iron on medium.', fit: ['Regular'], style: ['Classic', 'Smart'], comfy: 3 }),
     mk('Navy crewneck sweater', 'top', ['navy'], ['Fall', 'Winter'], 69, 9, 8, { warmth: 2, washEvery: 3, wearsSinceWash: 2 }),
     mk('Breton striped top', 'top', ['white', 'navy'], ['Spring', 'Summer'], 55, 6, 2, { status: 'dirty', wearsSinceWash: 1 }),
     mk('Black tee', 'top', ['black'], all, 12, 21, 1, { status: 'dirty', wearsSinceWash: 1 }),
-    mk('Grey hoodie', 'top', ['grey'], ['Fall', 'Winter', 'Spring'], 45, 17, 3, { warmth: 2, washEvery: 3, wearsSinceWash: 1, fav: true }),
-    mk('Silver party top', 'top', ['silver'], all, 35, 2, 24, { delicate: true }),
+    mk('Grey hoodie', 'top', ['grey'], ['Fall', 'Winter', 'Spring'], 45, 17, 3, { warmth: 2, washEvery: 3, wearsSinceWash: 1, fav: true, fit: ['Oversized'], style: ['Casual', 'Streetwear'], comfy: 5 }),
+    mk('Silver party top', 'top', ['silver'], all, 35, 2, 24, { delicate: true, fit: ['Cropped'], style: ['Chic'], comfy: 2 }),
     mk('Dark wash jeans', 'bottom', ['blue'], all, 89, 25, 1, { brand: "Levi's", fav: true, notes: '501, W30 L32.', wearsSinceWash: 3 }),
     mk('Beige chinos', 'bottom', ['beige'], ['Spring', 'Summer', 'Fall'], 49, 7, 2, { wearsSinceWash: 2 }),
-    mk('Black joggers', 'bottom', ['black'], all, 30, 11, 5, { wearsSinceWash: 4, status: 'dirty' }),
+    mk('Black joggers', 'bottom', ['black'], all, 30, 11, 5, { wearsSinceWash: 4, status: 'dirty', fit: ['Relaxed'], style: ['Sporty'], goodFor: ['Sport'], comfy: 5 }),
     mk('Black midi dress', 'dress', ['black'], all, 79, 3, 40),
     mk('Camel wool coat', 'outer', ['beige'], ['Fall', 'Winter'], 180, 11, 8, { washEvery: 0 }),
-    mk('Black puffer jacket', 'outer', ['black'], ['Winter'], 120, 6, 30, { washEvery: 0 }),
-    mk('Olive field jacket', 'outer', ['olive'], ['Spring', 'Fall'], 95, 0, null, { warmth: 2 }),
+    mk('Black puffer jacket', 'outer', ['black'], ['Winter'], 120, 6, 30, { washEvery: 0, goodFor: ['Cold', 'Wind', 'Snow'], comfy: 4 }),
+    mk('Olive field jacket', 'outer', ['olive'], ['Spring', 'Fall'], 95, 0, null, { warmth: 2, goodFor: ['Rain', 'Wind'], style: ['Classic'] }),
     mk('White leather sneakers', 'shoes', ['white'], ['Spring', 'Summer', 'Fall'], 110, 30, 1),
     mk('Brown Chelsea boots', 'shoes', ['brown'], ['Fall', 'Winter'], 150, 12, 8),
     mk('Black canvas tote', 'bag', ['black'], all, 25, 18, 1),
