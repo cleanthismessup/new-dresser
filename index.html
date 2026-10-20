@@ -5,22 +5,24 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: fitting-room app — sticky header, five-tab bottom bar (Today, Closet, Outfits, Laundry, Wishlist), bottom sheets for detail/forms. Item details styled like garment care labels. */
+/* Monochrome: pure white or pure black ground, greys for surfaces. Only the clothes themselves carry color. */
 :root {
-  --bg: #f3f2f5;
-  --surface: #ffffff;
-  --surface-2: #e8e6ec;
-  --fg: #1f1c25;
-  --muted: #6b6676;
-  --line: #dad7e0;
-  --accent: #8a2f45;
-  --accent-soft: #f1dfe4;
+  --bg: #ffffff;
+  --surface: #f3f3f3;
+  --surface-2: #e6e6e6;
+  --fg: #000000;
+  --muted: #666666;
+  --line: #d6d6d6;
+  --accent: #000000;
+  --accent-soft: #ebebeb;
   --on-accent: #ffffff;
-  --good: #23784a;
-  --good-soft: #dcefe3;
-  --warn: #9a6200;
-  --warn-soft: #f6ead2;
-  --bad: #b3261e;
-  --bad-soft: #f7dedb;
+  --good: #000000;
+  --good-soft: #ebebeb;
+  --warn: #000000;
+  --warn-soft: #ebebeb;
+  --bad: #000000;
+  --bad-soft: #ebebeb;
+  --scrim: rgba(0, 0, 0, 0.45);
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-body: "Figtree", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -29,18 +31,21 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #15131a; --surface: #1f1c26; --surface-2: #2a2632; --fg: #eeecf2; --muted: #a39eae;
-    --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25;
-    --good: #6fcf97; --good-soft: #1d3527; --warn: #e8b45a; --warn-soft: #3a2e17; --bad: #f2867e; --bad-soft: #3d1f1d;
+    --bg: #000000; --surface: #141414; --surface-2: #222222; --fg: #ffffff; --muted: #999999;
+    --line: #2e2e2e; --accent: #ffffff; --accent-soft: #262626; --on-accent: #000000;
+    --good: #ffffff; --good-soft: #262626; --warn: #ffffff; --warn-soft: #262626; --bad: #ffffff; --bad-soft: #262626;
+    --scrim: rgba(0, 0, 0, 0.7);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #15131a; --surface: #1f1c26; --surface-2: #2a2632; --fg: #eeecf2; --muted: #a39eae;
-  --line: #36323f; --accent: #e0849a; --accent-soft: #3a2229; --on-accent: #1f1c25;
-  --good: #6fcf97; --good-soft: #1d3527; --warn: #e8b45a; --warn-soft: #3a2e17; --bad: #f2867e; --bad-soft: #3d1f1d;
+  --bg: #000000; --surface: #141414; --surface-2: #222222; --fg: #ffffff; --muted: #999999;
+  --line: #2e2e2e; --accent: #ffffff; --accent-soft: #262626; --on-accent: #000000;
+  --good: #ffffff; --good-soft: #262626; --warn: #ffffff; --warn-soft: #262626; --bad: #ffffff; --bad-soft: #262626;
+  --scrim: rgba(0, 0, 0, 0.7);
   color-scheme: dark;
 }
+:root[data-theme="light"] { color-scheme: light; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
@@ -82,10 +87,11 @@ h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1
 
 /* Pills */
 .pill { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
-.pill.good { background: var(--good-soft); color: var(--good); }
-.pill.warn { background: var(--warn-soft); color: var(--warn); }
-.pill.bad { background: var(--bad-soft); color: var(--bad); }
-.pill.accent { background: var(--accent-soft); color: var(--accent); }
+/* Without color, status reads from fill: solid = good, outlined = needs attention */
+.pill.good { background: var(--fg); color: var(--bg); }
+.pill.warn { background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+.pill.bad { background: var(--bg); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.pill.accent { background: var(--fg); color: var(--bg); }
 
 /* Banner */
 .banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); border-radius: 12px; padding: 10px 14px; margin-top: 12px; font-size: 0.88rem; }
@@ -110,7 +116,7 @@ h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1
 .tag { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .badges { position: absolute; top: 8px; left: 8px; right: 30px; display: flex; gap: 4px; flex-wrap: wrap; }
 .badge { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--surface); color: var(--muted); padding: 2px 6px; border-radius: 6px; }
-.badge.hamper { background: var(--warn-soft); color: var(--warn); }
+.badge.hamper { background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
 .fav { position: absolute; top: 6px; right: 9px; color: var(--accent); font-size: 1rem; }
 .card.sel { box-shadow: 0 0 0 2.5px var(--accent); }
 .card .check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; }
@@ -180,7 +186,7 @@ h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1
 .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .btn.small { padding: 7px 12px; font-size: 0.85rem; border-radius: 10px; }
 .btn.danger { color: var(--bad); }
-.btn.armed { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.btn.armed { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .btn.block { width: 100%; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -190,13 +196,18 @@ h2.view-title { font-family: var(--font-display); font-weight: 700; font-size: 1
 .tab { background: none; border: 0; display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--muted); font-size: 0.68rem; font-weight: 600; padding: 0; position: relative; }
 .tab svg { width: 23px; height: 23px; }
 .tab[aria-current="page"] { color: var(--accent); }
-.tab .dotn { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 16px; height: 16px; border-radius: 8px; background: var(--warn); color: var(--surface); font-size: 0.6rem; display: grid; place-items: center; padding: 0 4px; }
-.fab { position: fixed; z-index: 7; right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)); bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px)); height: 52px; padding: 0 20px 0 16px; border-radius: 26px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
+.tab .dotn { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 16px; height: 16px; border-radius: 8px; background: var(--fg); color: var(--bg); font-size: 0.6rem; display: grid; place-items: center; padding: 0 4px; }
+.fab { position: fixed; z-index: 7; right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)); bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px)); height: 52px; padding: 0 20px 0 16px; border-radius: 26px; border: 1px solid var(--line); background: var(--accent); color: var(--on-accent); font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
+.top-actions { display: flex; gap: 8px; }
+.theme-ico .moon { display: none; }
+:root.is-dark .theme-ico .sun { display: none; }
+:root.is-dark .theme-ico .moon { display: inline; }
+:root.is-dark .sil g { stroke: rgba(255, 255, 255, 0.22); }
 .fab svg { width: 22px; height: 22px; }
 
 /* Sheet */
 .sheet-root { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
-.backdrop { position: absolute; inset: 0; background: rgba(10, 8, 14, 0.5); }
+.backdrop { position: absolute; inset: 0; background: var(--scrim); }
 .sheet { position: relative; background: var(--bg); width: 100%; max-width: 600px; max-height: 92%; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); animation: up 0.22s ease-out; overscroll-behavior: contain; }
 @keyframes up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
@@ -261,9 +272,14 @@ textarea.input { min-height: 72px; resize: vertical; }
 <header class="top">
   <div class="wrap top-in">
     <div class="brand">New Dresser</div>
-    <button class="icon-btn" type="button" data-action="settings" aria-label="Wardrobe stats and settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-    </button>
+    <div class="top-actions">
+      <button class="icon-btn" type="button" data-action="toggle-theme" id="themeBtn" aria-label="Switch to dark mode">
+        <svg class="theme-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><g class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M3 12h1.5M19.5 12H21M5.6 5.6l1 1M17.4 17.4l1 1M5.6 18.4l1-1M17.4 6.6l1-1"/></g><path class="moon" d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></svg>
+      </button>
+      <button class="icon-btn" type="button" data-action="settings" aria-label="Wardrobe stats and settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -423,6 +439,25 @@ textarea.input { min-height: 72px; resize: vertical; }
     const v = localStorage.getItem('nd-view'); if (VIEWS.includes(v)) state.view = v;
     const t = JSON.parse(localStorage.getItem('nd-today') || 'null'); if (t) Object.assign(state.today, t);
   } catch (e) {}
+
+  // ---------- Theme (light / dark / follow the phone) ----------
+  const root = document.documentElement;
+  const hostTheme = root.getAttribute('data-theme');
+  const darkMq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  let themePref = 'system';
+  try { const t = localStorage.getItem('nd-theme'); if (['light', 'dark', 'system'].includes(t)) themePref = t; } catch (e) {}
+  function applyTheme() {
+    if (themePref === 'system') { if (hostTheme) root.setAttribute('data-theme', hostTheme); else root.removeAttribute('data-theme'); }
+    else root.setAttribute('data-theme', themePref);
+    const attr = root.getAttribute('data-theme');
+    const dark = attr ? attr === 'dark' : !!darkMq?.matches;
+    root.classList.toggle('is-dark', dark);
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+  function setTheme(t) { themePref = t; try { localStorage.setItem('nd-theme', t); } catch (e) {} applyTheme(); }
+  darkMq?.addEventListener?.('change', applyTheme);
+  applyTheme();
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -1158,6 +1193,7 @@ textarea.input { min-height: 72px; resize: vertical; }
       ${never.length ? `<div class="section-lbl">Never worn</div><div class="mini-row">${never.map(i => `<button class="mini" data-action="open-item" data-id="${i.id}"><div class="pic">${pic(i)}</div><span>${esc(i.name)}</span></button>`).join('')}</div>` : ''}
       <div class="section-lbl">Settings</div>
       <div class="panel">
+        <div class="row between"><span>Appearance</span><div class="chips" style="padding:0">${[['system', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="chip" data-action="set-theme" data-v="${v}" aria-pressed="${themePref === v}">${l}</button>`).join('')}</div></div>
         <div class="row between"><span>Currency</span><div class="chips" style="padding:0">${CURRENCIES.map(c => `<button class="chip" data-action="set-currency" data-v="${c}" aria-pressed="${state.settings.currency === c}">${c}</button>`).join('')}</div></div>
         <div class="row between"><span>Temperature</span><div class="chips" style="padding:0">${['C', 'F'].map(u => `<button class="chip" data-action="set-unit" data-v="${u}" aria-pressed="${state.settings.unit === u}">°${u}</button>`).join('')}</div></div>
       </div>
@@ -1222,6 +1258,8 @@ textarea.input { min-height: 72px; resize: vertical; }
     switch (b.dataset.action) {
       case 'close-sheet': closeSheet(); break;
       case 'settings': openSettings(); break;
+      case 'toggle-theme': setTheme(root.classList.contains('is-dark') ? 'light' : 'dark'); break;
+      case 'set-theme': setTheme(b.dataset.v); openSettings(); break;
       case 'add-item': itemForm(); break;
       case 'new-outfit': outfitForm(); break;
       case 'add-wish': wishForm(); break;
