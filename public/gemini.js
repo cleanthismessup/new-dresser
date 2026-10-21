@@ -49,18 +49,40 @@ async function call(path, { key = getKey(), body, signal } = {}) {
     if (res.status === 429) throw new GeminiError('quota', "You've used today's free Gemini allowance. Try again later." + says);
     if (res.status === 404) throw new GeminiError('model', 'That Gemini model is not available for your key.' + says);
     if (res.status === 403) throw new GeminiError('denied', 'Gemini refused the request.' + says);
+    // Google's servers are overloaded for a moment: worth waiting and trying again
+    if ([500, 502, 503, 504].includes(res.status) || /overloaded|high demand|UNAVAILABLE|try again later/i.test(msg)) throw new GeminiError('busy', 'Gemini is busy right now. Try again in a minute.');
     throw new GeminiError('upstream', `Gemini error: ${msg}`);
   }
   return data;
 }
 
-// One tiny request to see whether this key may actually use a model
+// Waits between tries; a Stop press (signal) cancels the wait
+const pause = (ms, signal) => new Promise((resolve, reject) => {
+  if (signal?.aborted) { reject(new GeminiError('cancelled', 'Stopped.')); return; }
+  const t = setTimeout(resolve, ms);
+  signal?.addEventListener('abort', () => { clearTimeout(t); reject(new GeminiError('cancelled', 'Stopped.')); }, { once: true });
+});
+const WAITS = [1500, 4000];
+
+// Retries a request while Gemini reports it is busy (2 more tries, waiting longer each time)
+async function withRetry(fn, signal) {
+  for (let k = 0; ; k++) {
+    try { return await fn(); }
+    catch (e) {
+      if (e.code !== 'busy' || k >= WAITS.length) throw e;
+      await pause(WAITS[k] + Math.random() * 500, signal);
+    }
+  }
+}
+
+// One tiny request to see whether this key may actually use a model: 'ok', 'no' or 'busy'
 async function works(model, key) {
   try {
     await call(`models/${model}:generateContent`, { key, body: { contents: [{ role: 'user', parts: [{ text: 'Reply with OK.' }] }], generationConfig: { maxOutputTokens: 5 } } });
-    return true;
+    return 'ok';
   } catch (e) {
-    if (e.code === 'model' || e.code === 'denied') return false;
+    if (e.code === 'model' || e.code === 'denied') return 'no';
+    if (e.code === 'busy') return 'busy';
     throw e;
   }
 }
@@ -78,13 +100,20 @@ export async function testKey(key) {
   names.filter(n => /flash/.test(n) && !ordered.includes(n)).forEach(n => ordered.push(n));
   if (!ordered.length) throw new GeminiError('model', 'This key has no Gemini model that can read photos.');
   const tried = ordered.slice(0, MAX_TRIES);
+  const usable = [];
   for (const model of tried) {
-    if (await works(model, key)) {
+    const r = await works(model, key);
+    if (r === 'no') continue;
+    usable.push(model);
+    if (r === 'ok') {
+      // Busy models tested earlier stay first: they are allowed, just overloaded right now
+      const backups = [...usable.filter(n => n !== model), ...tried.slice(tried.indexOf(model) + 1)];
       write(KEY_STORE, key); write(MODEL_STORE, model);
-      write(CANDIDATES_STORE, JSON.stringify(tried.filter(n => n !== model)));
+      write(CANDIDATES_STORE, JSON.stringify(backups));
       return { model };
     }
   }
+  if (usable.length) throw new GeminiError('busy', 'Gemini is busy right now, so the key could not be checked. Try again in a minute.');
   throw new GeminiError('model', `None of the free Gemini models answered for this key (tried ${tried.join(', ')}). In AI Studio, check that the key's project is on the free tier, or create a new key.`);
 }
 
@@ -111,7 +140,7 @@ async function generateWith(model, body, tools, signal) {
   for (let n = tools.length; n >= 0; n--) attempts.push(tools.slice(0, n));
   let lastErr;
   for (const t of attempts) {
-    try { return await call(`models/${model}:generateContent`, { body: { ...body, tools: t.length ? t : undefined }, signal }); }
+    try { return await withRetry(() => call(`models/${model}:generateContent`, { body: { ...body, tools: t.length ? t : undefined }, signal }), signal); }
     catch (e) { lastErr = e; if (!['upstream', 'quota', 'denied', 'model'].includes(e.code) || !t.length) throw e; }
   }
   throw lastErr;
@@ -124,19 +153,19 @@ async function generate(parts, { tools = SEARCH, signal } = {}) {
   let data;
   try { data = await generateWith(model, body, tools, signal); }
   catch (e) {
-    if (e.code !== 'model') throw e;
-    // The saved model isn't usable: move to the next one this key can use, and remember it
+    if (e.code !== 'model' && e.code !== 'busy') throw e;
+    // The saved model is unusable (switch for good) or overloaded (use a backup just this once)
     const rest = candidates();
-    for (const next of rest) {
+    // When busy, try at most 2 backups so the wait stays short (each one retries too)
+    for (const next of e.code === 'busy' ? rest.slice(0, 2) : rest) {
       try {
         data = await generateWith(next, body, tools, signal);
-        model = next;
-        write(MODEL_STORE, next); write(CANDIDATES_STORE, JSON.stringify(rest.filter(n => n !== next)));
+        if (e.code === 'model') { model = next; write(MODEL_STORE, next); write(CANDIDATES_STORE, JSON.stringify(rest.filter(n => n !== next))); }
         break;
-      } catch (e2) { if (e2.code !== 'model') throw e2; }
+      } catch (e2) { if (e2.code !== 'model' && e2.code !== 'busy') throw e2; }
     }
     // No backups saved (key added before this check existed): re-check the key once and retry
-    if (!data && !rest.length) {
+    if (!data && !rest.length && e.code === 'model') {
       const { model: found } = await testKey(getKey());
       if (found !== model) data = await generateWith(found, body, tools, signal);
     }
