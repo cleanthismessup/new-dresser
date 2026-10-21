@@ -4,8 +4,11 @@
 const API = 'https://generativelanguage.googleapis.com/v1beta';
 const KEY_STORE = 'nd-gemini-key';
 const MODEL_STORE = 'nd-gemini-model';
-// Preferred free-tier models, best first. testKey() picks the first one this key can use.
-const PREFERRED = [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-3(\.\d+)?-flash/, /^gemini-2\.5-flash-lite$/, /^gemini-2\.0-flash$/];
+const CANDIDATES_STORE = 'nd-gemini-models';
+// Preferred free-tier models, best first. A key can list a model it isn't allowed to use,
+// so testKey() tries them in this order with a real request and keeps the first that answers.
+const PREFERRED = [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-3(\.\d+)?-flash(-preview)?$/, /^gemini-2\.5-flash-lite$/, /^gemini-flash-lite-latest$/, /^gemini-2\.0-flash$/, /^gemini-2\.0-flash-lite$/];
+const MAX_TRIES = 6;
 
 const read = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
 const write = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
@@ -13,7 +16,8 @@ const write = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.re
 export const getKey = () => read(KEY_STORE);
 export const getModel = () => read(MODEL_STORE);
 export const isSetUp = () => !!getKey() && !!getModel();
-export function forget() { write(KEY_STORE, ''); write(MODEL_STORE, ''); }
+export function forget() { write(KEY_STORE, ''); write(MODEL_STORE, ''); write(CANDIDATES_STORE, ''); }
+const candidates = () => { try { return JSON.parse(read(CANDIDATES_STORE) || '[]'); } catch (e) { return []; } };
 
 export class GeminiError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -36,13 +40,29 @@ async function call(path, { key = getKey(), body, signal } = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data?.error?.message || `HTTP ${res.status}`;
-    if (res.status === 400 && /api key/i.test(msg)) throw new GeminiError('bad_key', 'Gemini says this key is not valid.');
-    if (res.status === 401 || res.status === 403) throw new GeminiError('bad_key', 'Gemini refused this key.');
-    if (res.status === 429) throw new GeminiError('quota', "You've used today's free Gemini allowance. Try again later.");
-    if (res.status === 404) throw new GeminiError('model', 'That Gemini model is not available for your key.');
+    const says = ` (Google says: ${msg.slice(0, 160)})`;
+    if (/location is not supported|not available in your country|region/i.test(msg)) throw new GeminiError('region', "Gemini's free tier isn't available where you are." + says);
+    if ((res.status === 400 || res.status === 401 || res.status === 403) && /api.?key/i.test(msg)) throw new GeminiError('bad_key', 'Gemini says this key is not valid.' + says);
+    if (res.status === 401) throw new GeminiError('bad_key', 'Gemini refused this key.' + says);
+    // A free-tier limit of 0 means this model isn't offered on the free tier, not that the day's allowance ran out
+    if (res.status === 429 && /limit:\s*0\b|"limit":\s*0\b/i.test(msg)) throw new GeminiError('model', 'That Gemini model is not available on your free plan.' + says);
+    if (res.status === 429) throw new GeminiError('quota', "You've used today's free Gemini allowance. Try again later." + says);
+    if (res.status === 404) throw new GeminiError('model', 'That Gemini model is not available for your key.' + says);
+    if (res.status === 403) throw new GeminiError('denied', 'Gemini refused the request.' + says);
     throw new GeminiError('upstream', `Gemini error: ${msg}`);
   }
   return data;
+}
+
+// One tiny request to see whether this key may actually use a model
+async function works(model, key) {
+  try {
+    await call(`models/${model}:generateContent`, { key, body: { contents: [{ role: 'user', parts: [{ text: 'Reply with OK.' }] }], generationConfig: { maxOutputTokens: 5 } } });
+    return true;
+  } catch (e) {
+    if (e.code === 'model' || e.code === 'denied') return false;
+    throw e;
+  }
 }
 
 // Checks the key and remembers the best free model it can use.
@@ -52,13 +72,20 @@ export async function testKey(key) {
   const names = (data.models || [])
     .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
     .map(m => String(m.name).replace(/^models\//, ''))
-    .filter(n => !/(image|tts|live|audio|embedding|thinking-exp|vision)/.test(n));
-  let model = '';
-  for (const re of PREFERRED) { model = names.find(n => re.test(n)); if (model) break; }
-  if (!model) model = names.find(n => /flash/.test(n)) || names[0];
-  if (!model) throw new GeminiError('model', 'This key has no Gemini model that can read photos.');
-  write(KEY_STORE, key); write(MODEL_STORE, model);
-  return { model };
+    .filter(n => /^gemini/.test(n) && !/(image|tts|live|audio|embedding|thinking-exp|vision|robotics|computer-use)/.test(n));
+  const ordered = [];
+  for (const re of PREFERRED) names.filter(n => re.test(n)).forEach(n => ordered.includes(n) || ordered.push(n));
+  names.filter(n => /flash/.test(n) && !ordered.includes(n)).forEach(n => ordered.push(n));
+  if (!ordered.length) throw new GeminiError('model', 'This key has no Gemini model that can read photos.');
+  const tried = ordered.slice(0, MAX_TRIES);
+  for (const model of tried) {
+    if (await works(model, key)) {
+      write(KEY_STORE, key); write(MODEL_STORE, model);
+      write(CANDIDATES_STORE, JSON.stringify(tried.filter(n => n !== model)));
+      return { model };
+    }
+  }
+  throw new GeminiError('model', `None of the free Gemini models answered for this key (tried ${tried.join(', ')}). In AI Studio, check that the key's project is on the free tier, or create a new key.`);
 }
 
 function dataUrlPart(url) {
@@ -78,19 +105,43 @@ export function parseJson(text) {
 
 const SEARCH = [{ google_search: {} }];
 
-async function generate(parts, { tools = SEARCH, signal } = {}) {
-  const model = getModel();
-  if (!model) throw new GeminiError('no_key', 'Add your Gemini key in settings first.');
-  const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.2 } };
+async function generateWith(model, body, tools, signal) {
   // Some free-tier models or quotas don't allow every tool: drop tools one at a time, then answer without any
   const attempts = [];
   for (let n = tools.length; n >= 0; n--) attempts.push(tools.slice(0, n));
-  let data, lastErr;
+  let lastErr;
   for (const t of attempts) {
-    try { data = await call(`models/${model}:generateContent`, { body: { ...body, tools: t.length ? t : undefined }, signal }); break; }
-    catch (e) { lastErr = e; if (!(e.code === 'upstream' || e.code === 'quota') || !t.length) throw e; }
+    try { return await call(`models/${model}:generateContent`, { body: { ...body, tools: t.length ? t : undefined }, signal }); }
+    catch (e) { lastErr = e; if (!['upstream', 'quota', 'denied', 'model'].includes(e.code) || !t.length) throw e; }
   }
-  if (!data) throw lastErr;
+  throw lastErr;
+}
+
+async function generate(parts, { tools = SEARCH, signal } = {}) {
+  let model = getModel();
+  if (!model) throw new GeminiError('no_key', 'Add your Gemini key in settings first.');
+  const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.2 } };
+  let data;
+  try { data = await generateWith(model, body, tools, signal); }
+  catch (e) {
+    if (e.code !== 'model') throw e;
+    // The saved model isn't usable: move to the next one this key can use, and remember it
+    const rest = candidates();
+    for (const next of rest) {
+      try {
+        data = await generateWith(next, body, tools, signal);
+        model = next;
+        write(MODEL_STORE, next); write(CANDIDATES_STORE, JSON.stringify(rest.filter(n => n !== next)));
+        break;
+      } catch (e2) { if (e2.code !== 'model') throw e2; }
+    }
+    // No backups saved (key added before this check existed): re-check the key once and retry
+    if (!data && !rest.length) {
+      const { model: found } = await testKey(getKey());
+      if (found !== model) data = await generateWith(found, body, tools, signal);
+    }
+    if (!data) throw e;
+  }
   const cand = data.candidates?.[0];
   const text = (cand?.content?.parts || []).map(p => p.text || '').join('');
   if (!text.trim()) throw new GeminiError('empty', cand?.finishReason === 'SAFETY' ? "Gemini wouldn't work with this photo." : 'Gemini returned nothing. Try again.');

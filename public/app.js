@@ -188,7 +188,7 @@ const parsePrice = v => { const n = parseFloat(String(v ?? '').replace(',', '.')
 let toastTimer;
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, Math.max(2600, msg.length * 55));
 }
 async function save(store, obj) {
   const ok = await Store.put(store, obj);
